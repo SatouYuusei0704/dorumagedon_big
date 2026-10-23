@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+:root {
+  --background: #c8e6a0;
+  --foreground: #1a1a1a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-pixel);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-pixel), sans-serif;
+}
+
+/* ドット絵画像・Canvas をぼかさずに拡大する */
+img,
+canvas {
+  image-rendering: pixelated;
+}
+
+/* レトロゲーム風の角ばった枠線 */
+.pixel-border {
+  border: 4px solid #1a1a1a;
+  box-shadow: 4px 4px 0 0 #1a1a1a;
+}

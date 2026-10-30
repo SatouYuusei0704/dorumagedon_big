@@ -1,14 +1,6 @@
-import { PixelButton } from "@/components/ui/PixelButton";
-import { PixelWindow } from "@/components/ui/PixelWindow";
+import { redirect } from "next/navigation";
 
+// 起動時はタイトル画面（/start）を最初に表示する
 export default function Home() {
-  return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col gap-6 p-6">
-      <h1 className="text-center text-3xl">すれ違い広場</h1>
-      <PixelWindow title="ようこそ！">
-        <p>近くの人とすれ違って、くだものを集めよう。</p>
-      </PixelWindow>
-      <PixelButton>はじめる</PixelButton>
-    </main>
-  );
+  redirect("/start");
 }

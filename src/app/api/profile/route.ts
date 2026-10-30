@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isPrefecture } from "@/lib/prefectures";
 import type { AvatarData, Profile } from "@/types/database";
 
-const NICKNAME_MAX = 10;
+const NICKNAME_MAX = 12;
 
 function isAvatarData(value: unknown): value is AvatarData {
   if (typeof value !== "object" || value === null) return false;
@@ -41,7 +42,7 @@ export async function GET() {
   return NextResponse.json(data);
 }
 
-/** ニックネーム・アバターを更新する: PATCH /api/profile */
+/** ニックネーム・出身地・アバターを更新する: PATCH /api/profile */
 export async function PATCH(request: Request) {
   const supabase = await createClient();
   const {
@@ -55,9 +56,10 @@ export async function PATCH(request: Request) {
   if (typeof body !== "object" || body === null) {
     return NextResponse.json({ error: "invalid body" }, { status: 400 });
   }
-  const { nickname, avatar } = body as Record<string, unknown>;
+  const { nickname, homeArea, avatar } = body as Record<string, unknown>;
 
-  const updates: Partial<Pick<Profile, "nickname" | "avatar">> = {};
+  const updates: Partial<Pick<Profile, "nickname" | "home_area" | "avatar">> =
+    {};
   if (nickname !== undefined) {
     const trimmed = typeof nickname === "string" ? nickname.trim() : "";
     if (trimmed.length < 1 || trimmed.length > NICKNAME_MAX) {
@@ -67,6 +69,12 @@ export async function PATCH(request: Request) {
       );
     }
     updates.nickname = trimmed;
+  }
+  if (homeArea !== undefined) {
+    if (!isPrefecture(homeArea)) {
+      return NextResponse.json({ error: "invalid homeArea" }, { status: 400 });
+    }
+    updates.home_area = homeArea;
   }
   if (avatar !== undefined) {
     if (!isAvatarData(avatar)) {

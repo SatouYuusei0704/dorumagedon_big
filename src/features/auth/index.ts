@@ -1,2 +1,3 @@
 // auth 機能のエントリポイント。公開するものをここから export する。
-export { useAuth } from "./useAuth";
+export { useAuth, toAuthErrorMessage } from "./useAuth";
+export type { SignUpInput } from "./useAuth";

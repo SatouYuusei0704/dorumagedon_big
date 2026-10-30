@@ -1,37 +1,41 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-
-// 都道府県の選択肢リスト
-const PREFECTURES = [
-  '北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県',
-  '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県',
-  '新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県', '岐阜県',
-  '静岡県', '愛知県', '三重県', '滋賀県', '京都府', '大阪府', '兵庫県',
-  '奈良県', '和歌山県', '鳥取県', '島根県', '岡山県', '広島県', '山口県',
-  '徳島県', '香川県', '愛媛県', '高知県', '福岡県', '佐賀県', '長崎県',
-  '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県'
-];
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toAuthErrorMessage, useAuth } from "@/features/auth";
+import { PREFECTURES } from "@/lib/prefectures";
 
 export default function LoginPage() {
   // 'register'（冒険者登録）か 'login'（ログイン）の切り替え
-  const [mode, setMode] = useState<'register' | 'login'>('register');
+  const [mode, setMode] = useState<"register" | "login">("register");
 
   // フォーム入力の状態管理
   const [formData, setFormData] = useState({
-    playerName: '',
-    homeArea: '',
-    email: '',
-    password: '',
+    playerName: "",
+    homeArea: "",
+    email: "",
+    password: "",
     agreeTerms: false,
   });
 
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const router = useRouter();
+  const { user, loading, signUp, signIn } = useAuth();
+
+  // ログイン済みならホームへ
+  useEffect(() => {
+    if (!loading && user) router.replace("/home");
+  }, [loading, user, router]);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
     const { name, value, type } = e.target;
-    if (type === 'checkbox') {
+    if (type === "checkbox") {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData((prev) => ({ ...prev, [name]: checked }));
     } else {
@@ -39,78 +43,121 @@ export default function LoginPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (mode === 'register' && !formData.agreeTerms) {
-      alert('利用規約に同意してください');
+    if (mode === "register" && !formData.agreeTerms) {
+      alert("利用規約に同意してください");
       return;
     }
-    console.log(mode === 'register' ? '新規登録データ:' : 'ログインデータ:', formData);
-    // TODO: Supabase等の認証処理をここに記述
+
+    setSubmitting(true);
+    setMessage("");
+    try {
+      if (mode === "register") {
+        const { needsConfirmation } = await signUp({
+          email: formData.email,
+          password: formData.password,
+          nickname: formData.playerName,
+          homeArea: formData.homeArea,
+        });
+        if (needsConfirmation) {
+          setMessage("確認メールを送りました。メールのリンクを開いてください");
+          return;
+        }
+      } else {
+        await signIn(formData.email, formData.password);
+      }
+      router.push("/home");
+    } catch (error) {
+      setMessage(toAuthErrorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <main className="min-h-screen bg-[#1e293b] flex justify-center items-center p-2 font-mono selection:bg-[#e11d48] selection:text-white">
+    <main className="flex min-h-screen items-center justify-center bg-[#1e293b] p-2 font-mono selection:bg-[#e11d48] selection:text-white">
       {/* スマホ画面枠風コンテナ */}
-      <div 
-        className="w-full max-w-[420px] bg-[#fef08a] border-4 border-[#0f172a] shadow-[8px_8px_0px_0px_rgba(15,23,42,1)] rounded-2xl overflow-hidden relative min-h-[750px] flex flex-col p-4 select-none"
+      <div
+        className="relative flex min-h-[750px] w-full max-w-[420px] flex-col overflow-hidden rounded-2xl border-4 border-[#0f172a] bg-[#fef08a] p-4 shadow-[8px_8px_0px_0px_rgba(15,23,42,1)] select-none"
         style={{
-          backgroundImage: 'linear-gradient(rgba(0,0,0,0.08) 1px, transparent 1px)',
-          backgroundSize: '100% 20px'
+          backgroundImage:
+            "linear-gradient(rgba(0,0,0,0.08) 1px, transparent 1px)",
+          backgroundSize: "100% 20px",
         }}
       >
         {/* 上部ヘッダー（もどるボタン & STEP表示） */}
-        <div className="flex justify-between items-center mb-3">
+        <div className="mb-3 flex items-center justify-between">
           <Link
             href="/start"
-            className="bg-[#0f172a] text-white border-2 border-black px-3 py-1 text-xs font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-slate-800 transition-colors flex items-center"
+            className="flex items-center border-2 border-black bg-[#0f172a] px-3 py-1 text-xs font-bold text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors hover:bg-slate-800"
           >
             ◀ もどる
           </Link>
-          {mode === 'register' && (
-            <div className="bg-[#dc2626] text-white border-2 border-black px-3 py-1 text-xs font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-right">
-              <div className="text-[9px] opacity-80 leading-none">STEP</div>
-              <div className="text-sm leading-none font-extrabold mt-0.5">01</div>
+          {mode === "register" && (
+            <div className="border-2 border-black bg-[#dc2626] px-3 py-1 text-right text-xs font-bold text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+              <div className="text-[9px] leading-none opacity-80">STEP</div>
+              <div className="mt-0.5 text-sm leading-none font-extrabold">
+                01
+              </div>
             </div>
           )}
         </div>
 
         {/* バナーヘッダー */}
-        <div className="bg-[#1e3a8a] text-white border-4 border-[#0f172a] p-3 shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] flex items-center mb-5">
-          <div className="w-12 h-12 bg-[#fef08a] border-2 border-black flex-shrink-0 mr-3 flex items-center justify-center relative">
-            <div className="w-6 h-6 bg-[#f87171] border border-black relative">
-              <div className="w-1 h-1 bg-black absolute top-1 left-1"></div>
-              <div className="w-1 h-1 bg-black absolute top-1 right-1"></div>
+        <div className="mb-5 flex items-center border-4 border-[#0f172a] bg-[#1e3a8a] p-3 text-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]">
+          <div className="relative mr-3 flex h-12 w-12 flex-shrink-0 items-center justify-center border-2 border-black bg-[#fef08a]">
+            <div className="relative h-6 w-6 border border-black bg-[#f87171]">
+              <div className="absolute top-1 left-1 h-1 w-1 bg-black"></div>
+              <div className="absolute top-1 right-1 h-1 w-1 bg-black"></div>
             </div>
           </div>
           <div>
-            {mode === 'register' ? (
+            {mode === "register" ? (
               <>
-                <div className="text-[10px] text-[#facc15] font-bold tracking-widest">WELCOME, NEW PLAYER!</div>
-                <h2 className="text-xl font-extrabold tracking-wide">冒険者登録</h2>
-                <p className="text-[11px] text-slate-200">キミのプロフィールをつくろう</p>
+                <div className="text-[10px] font-bold tracking-widest text-[#facc15]">
+                  WELCOME, NEW PLAYER!
+                </div>
+                <h2 className="text-xl font-extrabold tracking-wide">
+                  冒険者登録
+                </h2>
+                <p className="text-[11px] text-slate-200">
+                  キミのプロフィールをつくろう
+                </p>
               </>
             ) : (
               <>
-                <div className="text-[10px] text-[#facc15] font-bold tracking-widest">WELCOME BACK!</div>
-                <h2 className="text-xl font-extrabold tracking-wide">おかえりなさい</h2>
-                <p className="text-[11px] text-slate-200">登録したアカウントでログイン</p>
+                <div className="text-[10px] font-bold tracking-widest text-[#facc15]">
+                  WELCOME BACK!
+                </div>
+                <h2 className="text-xl font-extrabold tracking-wide">
+                  おかえりなさい
+                </h2>
+                <p className="text-[11px] text-slate-200">
+                  登録したアカウントでログイン
+                </p>
               </>
             )}
           </div>
         </div>
 
         {/* フォーム部分 */}
-        <form onSubmit={handleSubmit} className="space-y-3 flex-1 flex flex-col justify-between">
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-1 flex-col justify-between space-y-3"
+        >
           <div className="space-y-3">
             {/* 新規登録時のみ：冒険者名 */}
-            {mode === 'register' && (
+            {mode === "register" && (
               <div>
-                <label className="block text-xs font-bold text-[#0f172a] mb-1">
-                  冒険者名 <span className="text-[10px] text-[#dc2626]">PLAYER NAME</span>
+                <label className="mb-1 block text-xs font-bold text-[#0f172a]">
+                  冒険者名{" "}
+                  <span className="text-[10px] text-[#dc2626]">
+                    PLAYER NAME
+                  </span>
                 </label>
                 <div className="relative flex items-center">
-                  <div className="absolute left-2 w-5 h-5 bg-[#dc2626] border border-black rotate-45 flex items-center justify-center z-10"></div>
+                  <div className="absolute left-2 z-10 flex h-5 w-5 rotate-45 items-center justify-center border border-black bg-[#dc2626]"></div>
                   <input
                     type="text"
                     name="playerName"
@@ -118,46 +165,54 @@ export default function LoginPage() {
                     placeholder="例：ご当地ハンター"
                     value={formData.playerName}
                     onChange={handleChange}
-                    required={mode === 'register'}
-                    className="w-full bg-white border-2 border-[#0f172a] pl-9 pr-16 py-2 text-sm text-[#0f172a] focus:outline-none shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]"
+                    required={mode === "register"}
+                    className="w-full border-2 border-[#0f172a] bg-white py-2 pr-16 pl-9 text-sm text-[#0f172a] shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] focus:outline-none"
                   />
-                  <span className="absolute right-2 text-[10px] text-gray-500 font-bold">12文字まで</span>
+                  <span className="absolute right-2 text-[10px] font-bold text-gray-500">
+                    12文字まで
+                  </span>
                 </div>
               </div>
             )}
 
             {/* 新規登録時のみ：出身地 */}
-            {mode === 'register' && (
+            {mode === "register" && (
               <div>
-                <label className="block text-xs font-bold text-[#0f172a] mb-1">
-                  出身地 <span className="text-[10px] text-[#dc2626]">HOME AREA</span>
+                <label className="mb-1 block text-xs font-bold text-[#0f172a]">
+                  出身地{" "}
+                  <span className="text-[10px] text-[#dc2626]">HOME AREA</span>
                 </label>
                 <div className="relative flex items-center">
-                  <div className="absolute left-2 w-5 h-5 bg-[#facc15] border border-black rounded-full z-10"></div>
+                  <div className="absolute left-2 z-10 h-5 w-5 rounded-full border border-black bg-[#facc15]"></div>
                   <select
                     name="homeArea"
                     value={formData.homeArea}
                     onChange={handleChange}
-                    required={mode === 'register'}
-                    className="w-full bg-white border-2 border-[#0f172a] pl-9 pr-8 py-2 text-sm text-[#0f172a] focus:outline-none shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] appearance-none cursor-pointer"
+                    required={mode === "register"}
+                    className="w-full cursor-pointer appearance-none border-2 border-[#0f172a] bg-white py-2 pr-8 pl-9 text-sm text-[#0f172a] shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] focus:outline-none"
                   >
                     <option value="">都道府県を選択</option>
                     {PREFECTURES.map((pref) => (
-                      <option key={pref} value={pref}>{pref}</option>
+                      <option key={pref} value={pref}>
+                        {pref}
+                      </option>
                     ))}
                   </select>
-                  <div className="absolute right-3 pointer-events-none text-xs text-[#0f172a]">▼</div>
+                  <div className="pointer-events-none absolute right-3 text-xs text-[#0f172a]">
+                    ▼
+                  </div>
                 </div>
               </div>
             )}
 
             {/* メールアドレス */}
             <div>
-              <label className="block text-xs font-bold text-[#0f172a] mb-1">
-                メールアドレス <span className="text-[10px] text-[#dc2626]">EMAIL</span>
+              <label className="mb-1 block text-xs font-bold text-[#0f172a]">
+                メールアドレス{" "}
+                <span className="text-[10px] text-[#dc2626]">EMAIL</span>
               </label>
               <div className="relative flex items-center">
-                <div className="absolute left-2 w-5 h-5 bg-[#dc2626] border border-black text-white text-[10px] font-bold flex items-center justify-center z-10">
+                <div className="absolute left-2 z-10 flex h-5 w-5 items-center justify-center border border-black bg-[#dc2626] text-[10px] font-bold text-white">
                   @
                 </div>
                 <input
@@ -167,40 +222,43 @@ export default function LoginPage() {
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  className="w-full bg-white border-2 border-[#0f172a] pl-9 pr-3 py-2 text-sm text-[#0f172a] focus:outline-none shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]"
+                  className="w-full border-2 border-[#0f172a] bg-white py-2 pr-3 pl-9 text-sm text-[#0f172a] shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] focus:outline-none"
                 />
               </div>
             </div>
 
             {/* パスワード */}
             <div>
-              <label className="block text-xs font-bold text-[#0f172a] mb-1">
-                パスワード <span className="text-[10px] text-[#dc2626]">PASSWORD</span>
+              <label className="mb-1 block text-xs font-bold text-[#0f172a]">
+                パスワード{" "}
+                <span className="text-[10px] text-[#dc2626]">PASSWORD</span>
               </label>
               <div className="relative flex items-center">
-                <div className="absolute left-2 w-5 h-5 bg-[#dc2626] border border-black rotate-45 flex items-center justify-center z-10"></div>
+                <div className="absolute left-2 z-10 flex h-5 w-5 rotate-45 items-center justify-center border border-black bg-[#dc2626]"></div>
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   name="password"
                   minLength={8}
-                  placeholder={mode === 'register' ? '8文字以上' : 'パスワードを入力'}
+                  placeholder={
+                    mode === "register" ? "8文字以上" : "パスワードを入力"
+                  }
                   value={formData.password}
                   onChange={handleChange}
                   required
-                  className="w-full bg-white border-2 border-[#0f172a] pl-9 pr-14 py-2 text-sm text-[#0f172a] focus:outline-none shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]"
+                  className="w-full border-2 border-[#0f172a] bg-white py-2 pr-14 pl-9 text-sm text-[#0f172a] shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-1 bg-[#fef08a] border border-black px-2 py-0.5 text-[10px] font-bold hover:bg-yellow-300"
+                  className="absolute right-1 border border-black bg-[#fef08a] px-2 py-0.5 text-[10px] font-bold hover:bg-yellow-300"
                 >
-                  {showPassword ? 'かくす' : 'みる'}
+                  {showPassword ? "かくす" : "みる"}
                 </button>
               </div>
             </div>
 
             {/* 新規登録時のみ：利用規約同意 */}
-            {mode === 'register' && (
+            {mode === "register" && (
               <div className="flex items-center pt-2">
                 <input
                   type="checkbox"
@@ -208,32 +266,43 @@ export default function LoginPage() {
                   name="agreeTerms"
                   checked={formData.agreeTerms}
                   onChange={handleChange}
-                  className="w-4 h-4 border-2 border-black rounded-none text-[#dc2626] focus:ring-0 cursor-pointer"
+                  className="h-4 w-4 cursor-pointer rounded-none border-2 border-black text-[#dc2626] focus:ring-0"
                 />
-                <label htmlFor="agreeTerms" className="ml-2 text-xs font-bold text-[#0f172a] cursor-pointer">
-                  <span className="underline">利用規約</span> と <span className="underline">プライバシーポリシー</span> に同意する
+                <label
+                  htmlFor="agreeTerms"
+                  className="ml-2 cursor-pointer text-xs font-bold text-[#0f172a]"
+                >
+                  <span className="underline">利用規約</span> と{" "}
+                  <span className="underline">プライバシーポリシー</span>{" "}
+                  に同意する
                 </label>
               </div>
             )}
           </div>
 
           {/* 送信ボタン & モード切り替えリンク */}
-          <div className="pt-4 space-y-3">
-            {mode === 'register' ? (
+          <div className="space-y-3 pt-4">
+            {message && (
+              <p className="border-2 border-[#0f172a] bg-white px-3 py-2 text-xs font-bold text-[#dc2626]">
+                {message}
+              </p>
+            )}
+            {mode === "register" ? (
               <>
                 <button
                   type="submit"
-                  className="w-full bg-[#dc2626] hover:bg-[#b91c1c] text-white font-extrabold text-lg py-3 border-4 border-[#0f172a] shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all flex items-center justify-center cursor-pointer"
+                  disabled={submitting}
+                  className="flex w-full cursor-pointer items-center justify-center border-4 border-[#0f172a] bg-[#dc2626] py-3 text-lg font-extrabold text-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] transition-all hover:bg-[#b91c1c] active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] disabled:cursor-wait disabled:opacity-60"
                 >
                   冒険をはじめる <span className="ml-2 text-yellow-300">▶</span>
                 </button>
 
                 <div className="text-center text-xs font-bold text-[#0f172a]">
-                  すでにアカウントをお持ちの方{' '}
+                  すでにアカウントをお持ちの方{" "}
                   <button
                     type="button"
-                    onClick={() => setMode('login')}
-                    className="text-[#dc2626] underline hover:text-red-700 ml-1 cursor-pointer"
+                    onClick={() => setMode("login")}
+                    className="ml-1 cursor-pointer text-[#dc2626] underline hover:text-red-700"
                   >
                     ログイン
                   </button>
@@ -243,17 +312,19 @@ export default function LoginPage() {
               <>
                 <button
                   type="submit"
-                  className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-extrabold text-lg py-3 border-4 border-[#0f172a] shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all flex items-center justify-center cursor-pointer"
+                  disabled={submitting}
+                  className="flex w-full cursor-pointer items-center justify-center border-4 border-[#0f172a] bg-[#2563eb] py-3 text-lg font-extrabold text-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] transition-all hover:bg-[#1d4ed8] active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] disabled:cursor-wait disabled:opacity-60"
                 >
-                  ログインして再開 <span className="ml-2 text-yellow-300">▶</span>
+                  ログインして再開{" "}
+                  <span className="ml-2 text-yellow-300">▶</span>
                 </button>
 
                 <div className="text-center text-xs font-bold text-[#0f172a]">
-                  新規作成はこちら{' '}
+                  新規作成はこちら{" "}
                   <button
                     type="button"
-                    onClick={() => setMode('register')}
-                    className="text-[#dc2626] underline hover:text-red-700 ml-1 cursor-pointer"
+                    onClick={() => setMode("register")}
+                    className="ml-1 cursor-pointer text-[#dc2626] underline hover:text-red-700"
                   >
                     新規冒険者登録
                   </button>

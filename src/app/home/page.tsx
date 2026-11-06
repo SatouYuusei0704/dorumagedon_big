@@ -55,6 +55,9 @@ export default function HomePage() {
             <p className="text-sm">よみこみ中...</p>
           )}
         </PixelWindow>
+        <PixelButton onClick={() => router.push("/debug")} className="w-full">
+          すれ違いテスト（仮）
+        </PixelButton>
         <PixelButton onClick={handleSignOut} className="w-full">
           ログアウト
         </PixelButton>

@@ -1,58 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-
-// 都道府県の選択肢リスト
-const PREFECTURES = [
-  "北海道",
-  "青森県",
-  "岩手県",
-  "宮城県",
-  "秋田県",
-  "山形県",
-  "福島県",
-  "茨城県",
-  "栃木県",
-  "群馬県",
-  "埼玉県",
-  "千葉県",
-  "東京都",
-  "神奈川県",
-  "新潟県",
-  "富山県",
-  "石川県",
-  "福井県",
-  "山梨県",
-  "長野県",
-  "岐阜県",
-  "静岡県",
-  "愛知県",
-  "三重県",
-  "滋賀県",
-  "京都府",
-  "大阪府",
-  "兵庫県",
-  "奈良県",
-  "和歌山県",
-  "鳥取県",
-  "島根県",
-  "岡山県",
-  "広島県",
-  "山口県",
-  "徳島県",
-  "香川県",
-  "愛媛県",
-  "高知県",
-  "福岡県",
-  "佐賀県",
-  "長崎県",
-  "熊本県",
-  "大分県",
-  "宮崎県",
-  "鹿児島県",
-  "沖縄県",
-];
+import { useRouter } from "next/navigation";
+import { toAuthErrorMessage, useAuth } from "@/features/auth";
+import { PREFECTURES } from "@/lib/prefectures";
 
 export default function LoginPage() {
   // 'register'（冒険者登録）か 'login'（ログイン）の切り替え
@@ -68,6 +20,19 @@ export default function LoginPage() {
   });
 
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const router = useRouter();
+  const { user, loading, signUp, signIn } = useAuth();
+
+  // 画面を開いた時点でログイン済みならホームへ（登録直後の遷移とぶつからないよう初回だけ判定）
+  const checkedInitialUser = useRef(false);
+  useEffect(() => {
+    if (loading || checkedInitialUser.current) return;
+    checkedInitialUser.current = true;
+    if (user) router.replace("/home");
+  }, [loading, user, router]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -81,17 +46,37 @@ export default function LoginPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (mode === "register" && !formData.agreeTerms) {
       alert("利用規約に同意してください");
       return;
     }
-    console.log(
-      mode === "register" ? "新規登録データ:" : "ログインデータ:",
-      formData,
-    );
-    // TODO: Supabase等の認証処理をここに記述
+
+    setSubmitting(true);
+    setMessage("");
+    try {
+      if (mode === "register") {
+        const { needsConfirmation } = await signUp({
+          email: formData.email,
+          password: formData.password,
+          nickname: formData.playerName,
+          homeArea: formData.homeArea,
+        });
+        if (needsConfirmation) {
+          setMessage("確認メールを送りました。メールのリンクを開いてください");
+          return;
+        }
+        router.push("/new_charcter");
+      } else {
+        await signIn(formData.email, formData.password);
+        router.push("/home");
+      }
+    } catch (error) {
+      setMessage(toAuthErrorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -301,11 +286,17 @@ export default function LoginPage() {
 
           {/* 送信ボタン & モード切り替えリンク */}
           <div className="space-y-3 pt-4">
+            {message && (
+              <p className="border-2 border-[#0f172a] bg-white px-3 py-2 text-xs font-bold text-[#dc2626]">
+                {message}
+              </p>
+            )}
             {mode === "register" ? (
               <>
                 <button
                   type="submit"
-                  className="flex w-full cursor-pointer items-center justify-center border-4 border-[#0f172a] bg-[#dc2626] py-3 text-lg font-extrabold text-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] transition-all hover:bg-[#b91c1c] active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
+                  disabled={submitting}
+                  className="flex w-full cursor-pointer items-center justify-center border-4 border-[#0f172a] bg-[#dc2626] py-3 text-lg font-extrabold text-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] transition-all hover:bg-[#b91c1c] active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] disabled:cursor-wait disabled:opacity-60"
                 >
                   キャラクターを作ろう{" "}
                   <span className="ml-2 text-yellow-300">▶</span>
@@ -326,7 +317,8 @@ export default function LoginPage() {
               <>
                 <button
                   type="submit"
-                  className="flex w-full cursor-pointer items-center justify-center border-4 border-[#0f172a] bg-[#2563eb] py-3 text-lg font-extrabold text-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] transition-all hover:bg-[#1d4ed8] active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
+                  disabled={submitting}
+                  className="flex w-full cursor-pointer items-center justify-center border-4 border-[#0f172a] bg-[#2563eb] py-3 text-lg font-extrabold text-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] transition-all hover:bg-[#1d4ed8] active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] disabled:cursor-wait disabled:opacity-60"
                 >
                   ログインして再開{" "}
                   <span className="ml-2 text-yellow-300">▶</span>

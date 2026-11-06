@@ -4,6 +4,7 @@
 export type Profile = {
   id: string;
   nickname: string;
+  home_area: string | null;
   avatar: AvatarData;
   created_at: string;
 };

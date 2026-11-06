@@ -67,7 +67,12 @@ export default function LoginPage() {
           setMessage("確認メールを送りました。メールのリンクを開いてください");
           return;
         }
-        router.push("/new_charcter");
+        // 名前と出身地をアバター作成画面に引き継ぐ
+        const params = new URLSearchParams({
+          name: formData.playerName,
+          location: formData.homeArea,
+        });
+        router.push(`/new_character?${params}`);
       } else {
         await signIn(formData.email, formData.password);
         router.push("/home");

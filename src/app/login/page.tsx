@@ -26,12 +26,12 @@ export default function LoginPage() {
   const router = useRouter();
   const { user, loading, signUp, signIn } = useAuth();
 
-  // 画面を開いた時点でログイン済みならホームへ（登録直後の遷移とぶつからないよう初回だけ判定）
+  // 画面を開いた時点でログイン済みなら広場へ（登録直後の遷移とぶつからないよう初回だけ判定）
   const checkedInitialUser = useRef(false);
   useEffect(() => {
     if (loading || checkedInitialUser.current) return;
     checkedInitialUser.current = true;
-    if (user) router.replace("/home");
+    if (user) router.replace("/plaza");
   }, [loading, user, router]);
 
   const handleChange = (
@@ -75,7 +75,7 @@ export default function LoginPage() {
         router.push(`/new_character?${params}`);
       } else {
         await signIn(formData.email, formData.password);
-        router.push("/home");
+        router.push("/plaza");
       }
     } catch (error) {
       setMessage(toAuthErrorMessage(error));

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 const navigationItems = [
   { id: "home", label: "ホーム", icon: "◆" },
@@ -45,6 +46,7 @@ function PixelVisitor({
 }
 
 export default function ParkPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] =
     useState<(typeof navigationItems)[number]["id"]>("home");
   const [isBattling, setIsBattling] = useState(false);
@@ -179,7 +181,13 @@ export default function ParkPage() {
               aria-current={activeTab === item.id ? "page" : undefined}
               className={activeTab === item.id ? "active" : ""}
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => {
+                if (item.id === "character") {
+                  router.push("/status");
+                  return;
+                }
+                setActiveTab(item.id);
+              }}
               type="button"
             >
               <span className={`nav-icon icon-${item.id}`} aria-hidden="true">

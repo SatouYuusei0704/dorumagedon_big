@@ -21,6 +21,10 @@ export type Encounter = {
   user_a: string;
   user_b: string;
   encountered_at: string;
+  /** user_a が受け取った果物 */
+  item_to_a: number | null;
+  /** user_b が受け取った果物 */
+  item_to_b: number | null;
 };
 
 export type Item = {
@@ -35,3 +39,34 @@ export type UserItem = {
   item_id: number;
   quantity: number;
 };
+
+// ---- API レスポンス ----
+
+/** 他のユーザーとして公開するプロフィール */
+export type PublicProfile = Pick<
+  Profile,
+  "id" | "nickname" | "home_area" | "avatar"
+>;
+
+/** POST /api/location のレスポンス */
+export type LocationResponse = {
+  /** 今回新しく成立したすれ違い（なければ空配列） */
+  encounters: NewEncounter[];
+};
+
+export type NewEncounter = {
+  id: number;
+  partner: PublicProfile | null;
+  receivedItem: Item | null;
+};
+
+/** GET /api/encounters のレスポンス要素 */
+export type EncounterHistoryEntry = {
+  id: number;
+  encounteredAt: string;
+  partner: PublicProfile | null;
+  receivedItem: Item | null;
+};
+
+/** GET /api/items のレスポンス要素（図鑑） */
+export type CollectionEntry = Item & { quantity: number };

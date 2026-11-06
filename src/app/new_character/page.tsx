@@ -1,21 +1,45 @@
     'use client';
 
-    import React, { useState } from 'react';
+    import React, { useState, useEffect } from 'react';
     import Link from 'next/link';
+    import { useSearchParams } from 'next/navigation';
 
-    interface NewCharacterPageProps {
-    initialName?: string;
-    initialLocation?: string;
-    }
+    // 都道府県ごとのご当地アイテムデータ
+    const REGIONAL_ITEMS: Record<string, { name: string; icon: string; desc: string }> = {
+    滋賀県: { name: '琵琶湖の大ナマズ剣', icon: '🐟🗡️', desc: '琵琶湖の主の力が宿った巨大な剣' },
+    石川県: { name: '金箔のつるぎ', icon: '✨🗡️', desc: '金沢の輝きを秘めた煌びやかな剣' },
+    群馬県: { name: '上州ダルマのかぶと', icon: '🔴🪖', desc: '七転び八起き！絶対に倒れない兜' },
+    静岡県: { name: '茶摘みのやいば', icon: '🍃🗡️', desc: '富士山の風と茶葉の香りが漂う刀' },
+    長野県: { name: '信州そばの盾', icon: '🍜🛡️', desc: 'コシの強さで攻撃を跳ね返す盾' },
+    京都府: { name: '八ツ橋のかぶと', icon: '🍡🪖', desc: 'ほんのりニッキが香る歴史ある防具' },
+    福井県: { name: '恐竜の化石ブレード', icon: '🦖🗡️', desc: '太古のロマン溢れる巨大な骨の剣' },
+    島根県: { name: '勾玉のおまもり', icon: '☯️✨', desc: '出雲の神々の良縁と加護をもたらす宝玉' },
+    東京都: { name: 'タワーのたて', icon: '🗼🛡️', desc: '大都会の電波を守る強固な盾' },
+    大阪府: { name: 'なにわのハリセン', icon: '🪭', desc: 'ツッコミのキレが倍増する伝説の道具' },
+    北海道: { name: '木彫りのくま', icon: '🐻', desc: '鮭を咥えた強力なご当地お守り' },
+    };
 
-    // ==========================================
-    // 画像のデザインに合わせたパーツデータ定義
-    // ==========================================
+    const DEFAULT_ITEM = { name: '旅人のつるぎ', icon: '🗡️', desc: '全国を旅する者に与えられる基本の剣' };
+
+    const PREFECTURES = [
+    '石川県',
+    '滋賀県',
+    '群馬県',
+    '静岡県',
+    '長野県',
+    '京都府',
+    '福井県',
+    '島根県',
+    '東京都',
+    '大阪府',
+    '北海道',
+    ];
+
     const BODY_COLORS = [
-    { name: 'レッド', bg: 'bg-[#e63946]' },   // 赤服
-    { name: 'ブルー', bg: 'bg-[#1d3557]' },   // 青服
-    { name: 'グリーン', bg: 'bg-[#2a9d8f]' }, // 緑服
-    { name: 'イエロー', bg: 'bg-[#e9c46a]' }, // 黄服
+    { name: 'レッド', bg: 'bg-[#e63946]' },
+    { name: 'ブルー', bg: 'bg-[#1d3557]' },
+    { name: 'グリーン', bg: 'bg-[#2a9d8f]' },
+    { name: 'イエロー', bg: 'bg-[#e9c46a]' },
     ];
 
     const HAIR_STYLES = [
@@ -32,17 +56,26 @@
     { name: 'ロボ/メガネ', eyeType: 'glasses' },
     ];
 
-    export default function NewCharacterPage({
-    initialName = 'ゆうしゃ',
-    initialLocation = '石川県',
-    }: NewCharacterPageProps) {
-    // 選択中インデックス（0〜3）
+    export default function NewCharacterPage() {
+    const searchParams = useSearchParams();
+    
+    // ログイン画面から引き継いだデータ（なければデフォルト）
+    const [name, setName] = useState('ゆうしゃ');
+    const [selectedLocation, setSelectedLocation] = useState('石川県');
+
+    useEffect(() => {
+        const queryName = searchParams.get('name');
+        const queryLocation = searchParams.get('location');
+        if (queryName) setName(queryName);
+        if (queryLocation) setSelectedLocation(queryLocation);
+    }, [searchParams]);
+
+    // アバターパーツ選択状態
     const [faceIndex, setFaceIndex] = useState(0);
     const [hairIndex, setHairIndex] = useState(0);
     const [bodyColorIndex, setBodyColorIndex] = useState(0);
-
-    // カテゴリタブ
     const [activeTab, setActiveTab] = useState<'face' | 'hair' | 'bodyColor'>('face');
+    const [showItemModal, setShowItemModal] = useState(false);
 
     const MAX_PATTERNS = 4;
 
@@ -58,41 +91,31 @@
         if (activeTab === 'bodyColor') setBodyColorIndex((prev) => (prev + 1) % MAX_PATTERNS);
     };
 
+    const obtainedItem = REGIONAL_ITEMS[selectedLocation] || DEFAULT_ITEM;
+
     return (
         <main className="min-h-screen bg-[#1e293b] flex justify-center items-center p-2 font-mono selection:bg-[#e11d48] selection:text-white">
         <div className="w-full max-w-[420px] bg-[#fef08a] border-4 border-[#0f172a] shadow-[8px_8px_0px_0px_rgba(15,23,42,1)] rounded-2xl overflow-hidden relative min-h-[750px] flex flex-col justify-between p-4">
             
-            {/* ヘッダーエリア */}
+            {/* ヘッダー */}
             <div className="flex justify-between items-center bg-[#0f172a] text-white p-2 rounded-lg border-2 border-black mb-3">
-            <Link href="/start" className="text-xs bg-[#334155] hover:bg-[#475569] px-2 py-1 rounded border border-white/40">
+            <Link href="/login" className="text-xs bg-[#334155] hover:bg-[#475569] px-2 py-1 rounded border border-white/40">
                 ◀ もどる
             </Link>
             <h1 className="text-sm font-bold tracking-wider text-[#facc15]">アバターをつくる</h1>
             <div className="w-12"></div>
             </div>
 
-            {/* ==========================================
-                1. 画像風ドット絵アバター プレビュー表示
-            ========================================== */}
+            {/* 1. プレビュー表示 */}
             <div className="bg-[#7dd3fc] border-4 border-[#0f172a] rounded-xl p-4 flex flex-col items-center justify-center relative shadow-inner mb-4">
             <div className="text-xs font-bold bg-[#0f172a] text-white px-3 py-0.5 rounded-full mb-2">
                 PREVIEW
             </div>
-            
-            {/* ドット絵キャンバス */}
             <div className="w-44 h-48 bg-sky-200 border-4 border-[#0f172a] rounded-lg flex items-center justify-center relative shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] overflow-hidden">
-                
-                {/* ★ 画像再現ドットアバター本体 ★ */}
                 <div className="relative flex flex-col items-center justify-center scale-110">
-                
-                {/* 頭部（髪の毛 ＋ 顔） */}
                 <div className={`relative w-16 h-12 ${HAIR_STYLES[hairIndex].color} border-2 border-black flex flex-col justify-end p-1`}>
-                    {/* 髪の前髪部分カット */}
                     <div className="absolute top-0 left-0 right-0 h-3 bg-black/10"></div>
-                    
-                    {/* 肌部分（顔） */}
                     <div className="w-full h-8 bg-[#f8c39d] border-2 border-black flex items-center justify-around px-1 relative z-10">
-                    {/* 目のタイプ切り替え */}
                     {FACE_TYPES[faceIndex].eyeType === 'normal' && (
                         <>
                         <div className="w-2.5 h-2.5 bg-black"></div>
@@ -119,45 +142,29 @@
                     )}
                     </div>
                 </div>
-
-                {/* 胴体 ＋ 腕 ＋ 剣 */}
                 <div className="relative flex items-center">
-                    {/* 左腕/手 */}
                     <div className="w-2.5 h-8 bg-[#2b1e1a] border-y-2 border-l-2 border-black"></div>
-
-                    {/* 服（ボディカラー ＋ インナーホワイト） */}
                     <div className={`w-12 h-10 ${BODY_COLORS[bodyColorIndex].bg} border-2 border-black flex justify-center`}>
                     <div className="w-4 h-full bg-white border-x-2 border-black/20"></div>
                     </div>
-
-                    {/* 右腕/手 ＋ 剣 */}
                     <div className="relative flex items-center">
                     <div className="w-2.5 h-8 bg-[#2b1e1a] border-y-2 border-r-2 border-black"></div>
-                    
-                    {/* 剣 (グラフィック再現) */}
                     <div className="absolute left-1.5 -top-3 flex flex-col items-center">
                         <div className="w-2 h-7 bg-slate-300 border border-black"></div>
                         <div className="w-5 h-1.5 bg-slate-500 border border-black"></div>
                     </div>
                     </div>
                 </div>
-
-                {/* 脚（パンツ＆靴） */}
                 <div className="flex gap-2 w-12 justify-around">
                     <div className="w-3 h-5 bg-[#18181b] border-x-2 border-b-2 border-black"></div>
                     <div className="w-3 h-5 bg-[#18181b] border-x-2 border-b-2 border-black"></div>
                 </div>
-
                 </div>
-
             </div>
             </div>
 
-            {/* ==========================================
-                2. パーツ選択 タブ & コントローラー
-            ========================================== */}
+            {/* 2. パーツ選択タブ & コントローラー */}
             <div className="bg-white border-4 border-[#0f172a] rounded-xl p-3 mb-4 shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]">
-            {/* カテゴリタブ */}
             <div className="flex gap-1 mb-3 border-b-2 border-[#0f172a] pb-2">
                 <button
                 type="button"
@@ -188,7 +195,6 @@
                 </button>
             </div>
 
-            {/* 左右切り替えボタン */}
             <div className="flex items-center justify-between bg-slate-100 p-2 rounded-lg border-2 border-[#0f172a]">
                 <button 
                 type="button"
@@ -197,13 +203,11 @@
                 >
                 ◀
                 </button>
-
                 <span className="text-xs font-bold text-[#0f172a]">
                 {activeTab === 'face' && `かお: ${FACE_TYPES[faceIndex].name}`}
                 {activeTab === 'hair' && `かみ色: ${HAIR_STYLES[hairIndex].name}`}
                 {activeTab === 'bodyColor' && `ふく色: ${BODY_COLORS[bodyColorIndex].name}`}
                 </span>
-
                 <button 
                 type="button"
                 onClick={handleNext}
@@ -214,28 +218,73 @@
             </div>
             </div>
 
-            {/* ==========================================
-                3. プロフィール表示（固定データ）
-            ========================================== */}
+            {/* 3. プロフィール & 出身地変更 */}
             <div className="bg-[#1e293b] text-white border-4 border-[#0f172a] rounded-xl p-3 mb-3 shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] space-y-2">
             <div className="flex items-center justify-between bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
                 <span className="text-[11px] text-[#facc15] font-bold">なまえ</span>
-                <span className="text-xs font-bold text-white tracking-wide">{initialName}</span>
+                <span className="text-xs font-bold text-white tracking-wide">{name}</span>
             </div>
 
             <div className="flex items-center justify-between bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
                 <span className="text-[11px] text-[#facc15] font-bold">しゅっしんち</span>
-                <span className="text-xs font-bold text-white tracking-wide">{initialLocation}</span>
+                <select
+                value={selectedLocation}
+                onChange={(e) => setSelectedLocation(e.target.value)}
+                className="bg-slate-900 border border-slate-600 rounded px-2 py-0.5 text-xs text-[#facc15] font-bold focus:outline-none focus:border-[#facc15] cursor-pointer"
+                >
+                {PREFECTURES.map((pref) => (
+                    <option key={pref} value={pref}>
+                    {pref}
+                    </option>
+                ))}
+                </select>
             </div>
             </div>
 
             {/* 決定ボタン */}
             <button 
             type="button"
+            onClick={() => setShowItemModal(true)}
             className="w-full bg-[#ef4444] text-white font-black py-3 rounded-xl border-4 border-[#0f172a] shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] hover:bg-[#dc2626] active:translate-y-1 active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] transition-all text-sm tracking-widest cursor-pointer"
             >
             このすがたで決定！
             </button>
+
+            {/* 4. モーダル表示 */}
+            {showItemModal && (
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-[#fef08a] border-4 border-[#0f172a] rounded-2xl p-4 w-full text-center shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+                <div className="text-xs font-bold bg-[#0f172a] text-[#facc15] px-3 py-1 rounded-full inline-block mb-2">
+                    ITEM GET!
+                </div>
+
+                <h2 className="text-sm font-bold text-[#0f172a] mb-3">
+                    {selectedLocation}のパワーを かんじる…！
+                </h2>
+
+                <div className="bg-white border-4 border-[#0f172a] rounded-xl p-4 mb-4 shadow-inner">
+                    <div className="text-5xl mb-2 animate-bounce">{obtainedItem.icon}</div>
+                    <div className="text-base font-black text-[#ef4444] mb-1">
+                    【 {obtainedItem.name} 】
+                    </div>
+                    <div className="text-[11px] text-slate-600 font-bold">
+                    {obtainedItem.desc}
+                    </div>
+                </div>
+
+                <p className="text-[11px] text-[#0f172a] font-bold mb-4">
+                    ご当地そうび を てにいれた！
+                </p>
+
+                <Link 
+                    href="/start" 
+                    className="block w-full bg-[#3b82f6] text-white font-black py-2.5 rounded-xl border-4 border-[#0f172a] shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] hover:bg-[#2563eb] active:translate-y-0.5 transition-all text-sm"
+                >
+                    ひろばへ むかう ➔
+                </Link>
+                </div>
+            </div>
+            )}
 
         </div>
         </main>

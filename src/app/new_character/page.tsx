@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
@@ -9,6 +9,11 @@ const REGIONAL_ITEMS: Record<
   string,
   { name: string; icon: string; desc: string }
 > = {
+  青森県: {
+    name: "りんごのつるぎ",
+    icon: "🍎🗡️",
+    desc: "甘酸っぱい魔力を秘めた真っ赤な剣",
+  },
   滋賀県: {
     name: "琵琶湖の大ナマズ剣",
     icon: "🐟🗡️",
@@ -73,6 +78,7 @@ const DEFAULT_ITEM = {
 };
 
 const PREFECTURES = [
+  "青森県",
   "石川県",
   "滋賀県",
   "群馬県",
@@ -107,21 +113,11 @@ const FACE_TYPES = [
   { name: "ロボ/メガネ", eyeType: "glasses" },
 ];
 
-// useSearchParams を使うため Suspense で包む（Next.js のビルド要件）
-export default function NewCharacterPage() {
-  return (
-    <Suspense>
-      <NewCharacterContent />
-    </Suspense>
-  );
-}
-
 function NewCharacterContent() {
   const searchParams = useSearchParams();
 
-  // ログイン画面から引き継いだデータ（なければデフォルト）
   const [name, setName] = useState("ゆうしゃ");
-  const [selectedLocation, setSelectedLocation] = useState("石川県");
+  const [selectedLocation, setSelectedLocation] = useState("青森県");
 
   useEffect(() => {
     const queryName = searchParams.get("name");
@@ -130,7 +126,6 @@ function NewCharacterContent() {
     if (queryLocation) setSelectedLocation(queryLocation);
   }, [searchParams]);
 
-  // アバターパーツ選択状態
   const [faceIndex, setFaceIndex] = useState(0);
   const [hairIndex, setHairIndex] = useState(0);
   const [bodyColorIndex, setBodyColorIndex] = useState(0);
@@ -158,6 +153,9 @@ function NewCharacterContent() {
   };
 
   const obtainedItem = REGIONAL_ITEMS[selectedLocation] || DEFAULT_ITEM;
+
+  // 開発テスト用：自分の作成したアバター情報を持ったままバトルへ行くURL
+  const devBattleUrl = `/battle?name=${encodeURIComponent(name)}&location=${encodeURIComponent(selectedLocation)}&hair=${hairIndex}&body=${bodyColorIndex}`;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#1e293b] p-2 font-mono selection:bg-[#e11d48] selection:text-white">
@@ -265,27 +263,27 @@ function NewCharacterContent() {
             <button
               type="button"
               onClick={() => setActiveTab("bodyColor")}
-              className={`flex-1 rounded border-2 border-[#0f172a] py-1 text-[10px] font-bold text-[#0f172a] transition-all sm:text-xs ${
-                activeTab === "bodyColor"
-                  ? "bg-[#facc15]"
-                  : "bg-slate-100 hover:bg-slate-200"
-              }`}
+              className={`flex-1 rounded border-2 border-[#0f172a] py-1 text-[10px] font-bold text-[#0f172a] transition-all sm:text-xs ${activeTab === "bodyColor" ? "bg-[#facc15]" : "bg-slate-100 hover:bg-slate-200"}`}
             >
-              ボディカラー
-            </button>
-          </div>
-
+              {" "}
+              ボディカラー{" "}
+            </button>{" "}
+          </div>{" "}
           <div className="flex items-center justify-between rounded-lg border-2 border-[#0f172a] bg-slate-100 p-2">
+            {" "}
             <button
               type="button"
               onClick={handlePrev}
               className="cursor-pointer rounded bg-[#0f172a] px-3 py-1 font-bold text-white hover:bg-slate-700 active:translate-y-0.5"
             >
-              ◀
-            </button>
+              {" "}
+              ◀{" "}
+            </button>{" "}
             <span className="text-xs font-bold text-[#0f172a]">
+              {" "}
               {activeTab === "face" && `かお: ${FACE_TYPES[faceIndex].name}`}
-              {activeTab === "hair" && `かみ色: ${HAIR_STYLES[hairIndex].name}`}
+              {activeTab === "hair" &&
+                `かみ色: ${HAIR_STYLES[hairIndex].name}`}{" "}
               {activeTab === "bodyColor" &&
                 `ふく色: ${BODY_COLORS[bodyColorIndex].name}`}
             </span>
@@ -338,20 +336,20 @@ function NewCharacterContent() {
         {/* 4. モーダル表示 */}
         {showItemModal && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-            <div className="w-full rounded-2xl border-4 border-[#0f172a] bg-[#fef08a] p-4 text-center shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-              <div className="mb-2 inline-block rounded-full bg-[#0f172a] px-3 py-1 text-xs font-bold text-[#facc15]">
+            <div className="w-full space-y-3 rounded-2xl border-4 border-[#0f172a] bg-[#fef08a] p-4 text-center shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+              <div className="inline-block rounded-full bg-[#0f172a] px-3 py-1 text-xs font-bold text-[#facc15]">
                 ITEM GET!
               </div>
 
-              <h2 className="mb-3 text-sm font-bold text-[#0f172a]">
+              <h2 className="text-sm font-bold text-[#0f172a]">
                 {selectedLocation}のパワーを かんじる…！
               </h2>
 
-              <div className="mb-4 rounded-xl border-4 border-[#0f172a] bg-white p-4 shadow-inner">
-                <div className="mb-2 animate-bounce text-5xl">
+              <div className="rounded-xl border-4 border-[#0f172a] bg-white p-3 shadow-inner">
+                <div className="mb-1 animate-bounce text-4xl">
                   {obtainedItem.icon}
                 </div>
-                <div className="mb-1 text-base font-black text-[#ef4444]">
+                <div className="mb-1 text-sm font-black text-[#ef4444]">
                   【 {obtainedItem.name} 】
                 </div>
                 <div className="text-[11px] font-bold text-slate-600">
@@ -359,20 +357,43 @@ function NewCharacterContent() {
                 </div>
               </div>
 
-              <p className="mb-4 text-[11px] font-bold text-[#0f172a]">
+              <p className="text-[11px] font-bold text-[#0f172a]">
                 ご当地そうび を てにいれた！
               </p>
 
+              {/* 本番用の広場へ向かうボタン */}
               <Link
                 href="/start"
-                className="block w-full rounded-xl border-4 border-[#0f172a] bg-[#3b82f6] py-2.5 text-sm font-black text-white shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] transition-all hover:bg-[#2563eb] active:translate-y-0.5"
+                className="block w-full rounded-xl border-4 border-[#0f172a] bg-[#3b82f6] py-2.5 text-xs font-black text-white shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] transition-all hover:bg-[#2563eb] active:translate-y-0.5"
               >
                 ひろばへ むかう ➔
+              </Link>
+
+              {/* 開発テスト用のバトル検証ボタン */}
+              <Link
+                href={devBattleUrl}
+                className="block w-full rounded-xl border-2 border-[#0f172a] bg-[#f59e0b] py-2 text-[11px] font-black text-[#0f172a] shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] transition-all hover:bg-[#d97706] active:translate-y-0.5"
+              >
+                【開発用】バトル画面を試す ⚔️
               </Link>
             </div>
           </div>
         )}
       </div>
     </main>
+  );
+}
+
+export default function NewCharacterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#1e293b] text-white">
+          Loading...
+        </div>
+      }
+    >
+      <NewCharacterContent />
+    </Suspense>
   );
 }

@@ -30,11 +30,7 @@ function PixelVisitor({
         <div className="sprite-face" />
         <div className="sprite-body" style={{ backgroundColor: color }} />
         {hasSword && (
-          <svg
-            className="sprite-sword"
-            viewBox="0 0 24 48"
-            aria-hidden="true"
-          >
+          <svg className="sprite-sword" viewBox="0 0 24 48" aria-hidden="true">
             <path d="M16 2h6v27h-6z" fill="#f3f5e8" />
             <path d="M16 2h2v27h-2z" fill="#93b9bd" />
             <path d="M13 28h12v5H13z" fill="#57402d" />
@@ -49,9 +45,8 @@ function PixelVisitor({
 }
 
 export default function ParkPage() {
-  const [activeTab, setActiveTab] = useState<(typeof navigationItems)[number]["id"]>(
-    "home",
-  );
+  const [activeTab, setActiveTab] =
+    useState<(typeof navigationItems)[number]["id"]>("home");
   const [isBattling, setIsBattling] = useState(false);
 
   return (
@@ -103,7 +98,10 @@ export default function ParkPage() {
             <path d="M0 106 76 8l47 67 34-28 75 108H0Z" fill="#467e83" />
             <path d="m76 8 20 32 19 35-39-22-17 8Z" fill="#789f9a" />
             <path d="m157 47 20 29-34-12-19 11Z" fill="#a2c6a0" />
-            <path d="M0 119 83 90l49 19 54-22 70 33 54-23 80 22v36H0Z" fill="#347477" />
+            <path
+              d="M0 119 83 90l49 19 54-22 70 33 54-23 80 22v36H0Z"
+              fill="#347477"
+            />
             <path d="M0 127h390v28H0z" fill="#78a88a" />
           </svg>
           <div className="distant-trees" aria-hidden="true">
@@ -162,7 +160,7 @@ export default function ParkPage() {
             </div>
           </div>
           <button
-            className={`battle-button${isBattling ? " is-battling" : ""}`}
+            className={`battle-button${isBattling ? "is-battling" : ""}`}
             onClick={() => setIsBattling((current) => !current)}
             type="button"
           >
@@ -382,8 +380,20 @@ export default function ParkPage() {
           height: 37%;
           background-color: #c5e79c;
           background-image:
-            linear-gradient(30deg, transparent 48%, #89c782 49%, #89c782 50%, transparent 51%),
-            linear-gradient(-30deg, transparent 48%, #89c782 49%, #89c782 50%, transparent 51%);
+            linear-gradient(
+              30deg,
+              transparent 48%,
+              #89c782 49%,
+              #89c782 50%,
+              transparent 51%
+            ),
+            linear-gradient(
+              -30deg,
+              transparent 48%,
+              #89c782 49%,
+              #89c782 50%,
+              transparent 51%
+            );
           background-size: 28px 17px;
         }
 
@@ -438,7 +448,9 @@ export default function ParkPage() {
           width: 8%;
           height: 64%;
           background: #477a69;
-          box-shadow: 7px -7px 0 -1px #477a69, -6px -4px 0 -2px #477a69;
+          box-shadow:
+            7px -7px 0 -1px #477a69,
+            -6px -4px 0 -2px #477a69;
         }
 
         .distant-trees i:nth-child(2n) {
@@ -452,8 +464,20 @@ export default function ParkPage() {
           inset: 34% 0 0;
           background-color: #b8df8e;
           background-image:
-            linear-gradient(30deg, transparent 48%, #89c782 49%, #89c782 50%, transparent 51%),
-            linear-gradient(-30deg, transparent 48%, #89c782 49%, #89c782 50%, transparent 51%);
+            linear-gradient(
+              30deg,
+              transparent 48%,
+              #89c782 49%,
+              #89c782 50%,
+              transparent 51%
+            ),
+            linear-gradient(
+              -30deg,
+              transparent 48%,
+              #89c782 49%,
+              #89c782 50%,
+              transparent 51%
+            );
           background-size: 28px 17px;
         }
 

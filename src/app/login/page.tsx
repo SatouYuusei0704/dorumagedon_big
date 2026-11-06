@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toAuthErrorMessage, useAuth } from "@/features/auth";
@@ -26,9 +26,12 @@ export default function LoginPage() {
   const router = useRouter();
   const { user, loading, signUp, signIn } = useAuth();
 
-  // ログイン済みならホームへ
+  // 画面を開いた時点でログイン済みならホームへ（登録直後の遷移とぶつからないよう初回だけ判定）
+  const checkedInitialUser = useRef(false);
   useEffect(() => {
-    if (!loading && user) router.replace("/home");
+    if (loading || checkedInitialUser.current) return;
+    checkedInitialUser.current = true;
+    if (user) router.replace("/home");
   }, [loading, user, router]);
 
   const handleChange = (
@@ -64,10 +67,11 @@ export default function LoginPage() {
           setMessage("確認メールを送りました。メールのリンクを開いてください");
           return;
         }
+        router.push("/new_charcter");
       } else {
         await signIn(formData.email, formData.password);
+        router.push("/home");
       }
-      router.push("/home");
     } catch (error) {
       setMessage(toAuthErrorMessage(error));
     } finally {
@@ -294,7 +298,8 @@ export default function LoginPage() {
                   disabled={submitting}
                   className="flex w-full cursor-pointer items-center justify-center border-4 border-[#0f172a] bg-[#dc2626] py-3 text-lg font-extrabold text-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] transition-all hover:bg-[#b91c1c] active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] disabled:cursor-wait disabled:opacity-60"
                 >
-                  冒険をはじめる <span className="ml-2 text-yellow-300">▶</span>
+                  キャラクターを作ろう{" "}
+                  <span className="ml-2 text-yellow-300">▶</span>
                 </button>
 
                 <div className="text-center text-xs font-bold text-[#0f172a]">

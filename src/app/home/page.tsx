@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelWindow } from "@/components/ui/PixelWindow";
@@ -12,9 +12,11 @@ export default function HomePage() {
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
+  // ログアウト操作中は「未ログインなら /login へ」を動かさない（/start への遷移を優先）
+  const signingOut = useRef(false);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || signingOut.current) return;
     if (!user) {
       router.replace("/login");
       return;
@@ -25,6 +27,7 @@ export default function HomePage() {
   }, [loading, user, router]);
 
   const handleSignOut = async () => {
+    signingOut.current = true;
     await signOut();
     router.replace("/start");
   };

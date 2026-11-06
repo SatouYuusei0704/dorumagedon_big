@@ -364,7 +364,7 @@ function NewCharacterContent() {
               </p>
 
               <Link
-                href="/start"
+                href="/park"
                 className="block w-full rounded-xl border-4 border-[#0f172a] bg-[#3b82f6] py-2.5 text-sm font-black text-white shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] transition-all hover:bg-[#2563eb] active:translate-y-0.5"
               >
                 ひろばへ むかう ➔

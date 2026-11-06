@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import Link from 'next/link';
+import Link from "next/link";
 
 export default function TitleScreen() {
   const handleTap = () => {
@@ -143,18 +143,16 @@ export default function TitleScreen() {
         {/* 4. TAPボタン & キャッチコピー */}
         <div className="z-20 -mt-2 flex w-full flex-col items-center px-6">
           <Link href="/login" className="w-full">
-          <div
-            className="group w-full cursor-pointer rounded-lg border-4 border-slate-900 bg-white/90 p-3 shadow-[0_6px_0_#1E293B] transition-all active:translate-y-1 active:shadow-[0_2px_0_#1E293B]"
-          >
-            <div className="text-4xl font-black tracking-widest text-[#E63946] drop-shadow-[2px_2px_0_#000] transition-transform group-hover:scale-105">
-              Tap !
+            <div className="group w-full cursor-pointer rounded-lg border-4 border-slate-900 bg-white/90 p-3 shadow-[0_6px_0_#1E293B] transition-all active:translate-y-1 active:shadow-[0_2px_0_#1E293B]">
+              <div className="text-4xl font-black tracking-widest text-[#E63946] drop-shadow-[2px_2px_0_#000] transition-transform group-hover:scale-105">
+                Tap !
+              </div>
+              <div className="mt-1 inline-block rounded bg-[#1D2D44] px-4 py-1 text-[10px] font-bold text-white">
+                画面をタップして出発
+              </div>
             </div>
-            <div className="mt-1 inline-block rounded bg-[#1D2D44] px-4 py-1 text-[10px] font-bold text-white">
-              画面をタップして出発
-            </div>
-          </div>
-      </Link>
-      
+          </Link>
+
           <p className="mt-3 rounded border border-slate-800/30 bg-white/60 px-2 py-0.5 text-[10px] font-extrabold text-slate-900">
             すれ違い通信でご当地の猛者と勝負！
           </p>

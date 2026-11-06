@@ -21,9 +21,9 @@ export type Encounter = {
   user_a: string;
   user_b: string;
   encountered_at: string;
-  /** user_a が受け取った果物 */
+  /** user_a が受け取ったアイテム */
   item_to_a: number | null;
-  /** user_b が受け取った果物 */
+  /** user_b が受け取ったアイテム */
   item_to_b: number | null;
 };
 
@@ -32,6 +32,11 @@ export type Item = {
   slug: string;
   name: string;
   rarity: number;
+  /** このアイテムがもらえる出身地（null は出身地に関係ないアイテム） */
+  prefecture: string | null;
+  /** 表示用の絵文字（ドット絵ができたら差し替える） */
+  icon: string;
+  description: string;
 };
 
 export type UserItem = {

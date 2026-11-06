@@ -22,7 +22,7 @@ type EncounterRow = {
 
 /**
  * 自分のすれ違い履歴を新しい順に返す: GET /api/encounters?limit=50
- * 相手のプロフィールと、自分が受け取った果物を含む。
+ * 相手のプロフィールと、自分が受け取ったアイテムを含む。
  */
 export async function GET(request: Request) {
   const supabase = await createClient();

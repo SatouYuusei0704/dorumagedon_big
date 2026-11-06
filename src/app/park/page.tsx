@@ -1,53 +1,62 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { AppFooter } from "@/components/ui/AppFooter";
+import { useAuth } from "@/features/auth";
+import { AvatarSprite } from "@/features/avatar";
+import type { EncounterHistoryEntry, PublicProfile } from "@/types/database";
 
-const navigationItems = [
-  { id: "home", label: "ホーム", icon: "◆" },
-  { id: "items", label: "アイテム", icon: "▣" },
-  { id: "history", label: "すれ違い", icon: "▤" },
-  { id: "settings", label: "設定", icon: "●" },
-  { id: "character", label: "キャラ", icon: "♟" },
-] as const;
+/** 広場に表示する最大人数（立ち位置の数） */
+const MAX_VISITORS = 8;
 
-function PixelVisitor({
-  className,
-  name,
-  message,
-  color,
-  hasSword = true,
-}: {
-  className: string;
-  name: string;
-  message: string;
-  color: string;
-  hasSword?: boolean;
-}) {
-  return (
-    <div className={`visitor ${className}`}>
-      <div className="visitor-sprite" aria-hidden="true">
-        <div className="sprite-hair" />
-        <div className="sprite-face" />
-        <div className="sprite-body" style={{ backgroundColor: color }} />
-        {hasSword && (
-          <svg className="sprite-sword" viewBox="0 0 24 48" aria-hidden="true">
-            <path d="M16 2h6v27h-6z" fill="#f3f5e8" />
-            <path d="M16 2h2v27h-2z" fill="#93b9bd" />
-            <path d="M13 28h12v5H13z" fill="#57402d" />
-            <path d="M17 33h4v13h-4z" fill="#d2a851" />
-          </svg>
-        )}
-      </div>
-      <span className="visitor-message">{message}</span>
-      <span className="visitor-name">{name}</span>
-    </div>
-  );
-}
+/** キャラクターの立ち位置（広場の中の % 位置。噴水と重ならないように配置） */
+const VISITOR_SPOTS = [
+  { top: 30, left: 18 },
+  { top: 30, left: 82 },
+  { top: 47, left: 22 },
+  { top: 47, left: 78 },
+  { top: 66, left: 14 },
+  { top: 66, left: 86 },
+  { top: 56, left: 50 },
+  { top: 74, left: 50 },
+];
 
 export default function ParkPage() {
-  const [activeTab, setActiveTab] =
-    useState<(typeof navigationItems)[number]["id"]>("home");
-  const [isBattling, setIsBattling] = useState(false);
+  const router = useRouter();
+  const { user, loading } = useAuth();
+  const [history, setHistory] = useState<EncounterHistoryEntry[] | null>(null);
+  const [selected, setSelected] = useState<PublicProfile | null>(null);
+
+  // 未ログインならログイン画面へ。ログイン済みならすれ違い履歴を読み込む
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+    fetch("/api/encounters?limit=100")
+      .then((res) => (res.ok ? res.json() : []))
+      .then(setHistory)
+      .catch(() => setHistory([]));
+  }, [loading, user, router]);
+
+  // すれ違った人（重複なし・新しい順）。退会したユーザーは除く
+  const partners = useMemo(() => {
+    const seen = new Map<string, PublicProfile>();
+    for (const entry of history ?? []) {
+      if (entry.partner && !seen.has(entry.partner.id)) {
+        seen.set(entry.partner.id, entry.partner);
+      }
+    }
+    return [...seen.values()];
+  }, [history]);
+
+  const visitors = partners.slice(0, MAX_VISITORS);
+
+  const startBattle = (partner: PublicProfile) => {
+    router.push(`/battle?opponent=${encodeURIComponent(partner.id)}`);
+  };
 
   return (
     <main className="park-shell">
@@ -60,28 +69,15 @@ export default function ParkPage() {
             <p>ご当地ハンター</p>
             <span>RANK 12</span>
           </div>
-          <div className="header-stats" aria-label="所持コインとポイント">
-            <span>
-              <b>G</b> 12,480
-            </span>
-            <span>
-              <b className="blue-stat">◆</b> 24
-            </span>
-          </div>
         </header>
-
-        <div className="announcement">
-          <span>お知らせ</span>
-          <p>東京エリアですれちがいボーナス発生中！</p>
-          <b aria-hidden="true">›</b>
-        </div>
 
         <section className="plaza-title">
           <p>CROSSING PLAZA</p>
           <div>
             <h1>すれちがい広場</h1>
             <span>
-              <strong>4</strong>人とすれちがいました
+              <strong>{history === null ? "-" : partners.length}</strong>
+              人とすれちがいました
             </span>
           </div>
         </section>
@@ -119,76 +115,82 @@ export default function ParkPage() {
             <span className="fountain-spray" />
           </div>
 
-          <PixelVisitor
-            className="visitor-one"
-            name="なにお侍"
-            message="おみやげ"
-            color="#ef5f54"
-          />
-          <PixelVisitor
-            className="visitor-two"
-            name="花まるナイト"
-            message="宝箱をゲット"
-            color="#3487a0"
-          />
-          <PixelVisitor
-            className="visitor-three"
-            name="ぽぽた"
-            message="新しい人"
-            color="#dfa83e"
-          />
-          <PixelVisitor
-            className="visitor-four"
-            name="信州リンゴ"
-            message="長野県"
-            color="#56aa83"
-          />
-          <div className="you-marker" aria-label="あなたの位置">
-            ▼
-          </div>
+          {/* すれ違った人のキャラクター（styled-jsx のスコープを効かせるためこのコンポーネント内に書く） */}
+          {visitors.map((partner, index) => {
+            const spot = VISITOR_SPOTS[index];
+            return (
+              <button
+                key={partner.id}
+                type="button"
+                className="visitor"
+                style={{ top: `${spot.top}%`, left: `${spot.left}%` }}
+                onClick={() => setSelected(partner)}
+                aria-label={`${partner.nickname}さん`}
+              >
+                {/* キャラクター作成で作ったアバター（未作成の人はデフォルトの見た目） */}
+                <span className="visitor-sprite">
+                  <AvatarSprite avatar={partner.avatar} scale={0.55} />
+                </span>
+                <span className="visitor-message">
+                  {partner.home_area ?? "出身地ふめい"}
+                </span>
+                <span className="visitor-name">{partner.nickname}</span>
+              </button>
+            );
+          })}
+
+          {history !== null && partners.length === 0 && (
+            <p className="empty-message">
+              まだ だれとも すれちがっていません
+              <br />
+              まちに でかけて すれちがおう！
+            </p>
+          )}
         </section>
 
-        <section className="battle-panel">
-          <div className="battle-profile">
-            <div className="battle-avatar" aria-hidden="true">
-              大
-            </div>
-            <div>
-              <span>大阪府・Lv.18</span>
-              <strong>なにお侍</strong>
-              <small>旅先で出会った冒険者</small>
-            </div>
-          </div>
-          <button
-            className={`battle-button${isBattling ? "is-battling" : ""}`}
-            onClick={() => setIsBattling((current) => !current)}
-            type="button"
+        {/* 画面切り替えは共通フッターを使う */}
+        <AppFooter className="shrink-0" />
+
+        {/* 戦闘の確認ポップアップ */}
+        {selected && (
+          <div
+            className="battle-confirm-backdrop"
+            onClick={() => setSelected(null)}
           >
-            <strong>{isBattling ? "待機中" : "戦闘"}</strong>
-            <span>{isBattling ? "TAP TO CANCEL" : "START!"}</span>
-          </button>
-        </section>
-
-        <div className="bottom-paper" aria-hidden="true">
-          <span />
-        </div>
-
-        <nav className="bottom-nav" aria-label="メインメニュー">
-          {navigationItems.map((item) => (
-            <button
-              aria-current={activeTab === item.id ? "page" : undefined}
-              className={activeTab === item.id ? "active" : ""}
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              type="button"
+            <div
+              className="battle-confirm"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="battle-confirm-title"
+              onClick={(e) => e.stopPropagation()}
             >
-              <span className={`nav-icon icon-${item.id}`} aria-hidden="true">
-                {item.icon}
-              </span>
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </nav>
+              <p className="battle-confirm-area">
+                {selected.home_area ?? "出身地ふめい"}
+              </p>
+              <p id="battle-confirm-title" className="battle-confirm-title">
+                {selected.nickname}さんと
+                <br />
+                戦闘しますか？
+              </p>
+              <div className="battle-confirm-actions">
+                <button
+                  type="button"
+                  className="confirm-yes"
+                  onClick={() => startBattle(selected)}
+                >
+                  はい
+                </button>
+                <button
+                  type="button"
+                  className="confirm-no"
+                  onClick={() => setSelected(null)}
+                >
+                  いいえ
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       <style jsx>{`
@@ -200,6 +202,7 @@ export default function ParkPage() {
         }
 
         .park-screen {
+          position: relative;
           display: flex;
           width: min(100%, 430px);
           min-height: 100dvh;
@@ -224,8 +227,7 @@ export default function ParkPage() {
           box-shadow: inset 0 -3px #101c30;
         }
 
-        .player-emblem,
-        .battle-avatar {
+        .player-emblem {
           display: grid;
           flex: 0 0 auto;
           place-items: center;
@@ -261,59 +263,6 @@ export default function ParkPage() {
           background: #e7b749;
           color: #342d23;
           font-size: 8px;
-        }
-
-        .header-stats {
-          display: grid;
-          width: 88px;
-          gap: 3px;
-          font-size: 9px;
-          font-weight: 700;
-          text-align: right;
-        }
-
-        .header-stats span {
-          display: flex;
-          justify-content: space-between;
-          padding: 2px 5px;
-          border: 1px solid #648093;
-          background: #101d31;
-        }
-
-        .header-stats b {
-          color: #f4c54b;
-        }
-
-        .header-stats .blue-stat {
-          color: #7bc5dc;
-        }
-
-        .announcement {
-          display: flex;
-          height: 27px;
-          flex: 0 0 27px;
-          align-items: center;
-          gap: 8px;
-          padding: 0 10px;
-          border-bottom: 1px solid #c99c4d;
-          background: #fff0c8;
-          font-size: 8px;
-        }
-
-        .announcement > span {
-          flex: 0 0 auto;
-          color: #c7473b;
-          font-weight: 900;
-        }
-
-        .announcement p {
-          flex: 1;
-          margin: 0;
-        }
-
-        .announcement b {
-          color: #d54b3e;
-          font-size: 17px;
         }
 
         .plaza-title {
@@ -563,74 +512,34 @@ export default function ParkPage() {
           width: 82px;
           flex-direction: column;
           align-items: center;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          font: inherit;
+          cursor: pointer;
+          transform: translateX(-50%);
         }
 
-        .visitor-one {
-          top: 34%;
-          left: 5%;
+        .visitor:hover .visitor-sprite,
+        .visitor:focus-visible .visitor-sprite {
+          transform: translateY(-3px);
         }
 
-        .visitor-two {
-          top: 30%;
-          right: 5%;
+        .visitor:focus-visible {
+          outline: 2px dashed #e64e48;
+          outline-offset: 2px;
         }
 
-        .visitor-three {
-          top: 67%;
-          left: 10%;
-        }
-
-        .visitor-four {
-          top: 69%;
-          right: 7%;
-        }
-
+        /* AvatarSprite（幅約80px×高さ約110px）を 0.55 倍にして中央に置く */
         .visitor-sprite {
           position: relative;
-          width: 42px;
-          height: 59px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: transform 0.1s;
+          width: 46px;
+          height: 62px;
           filter: drop-shadow(2px 2px 0 #29424955);
-        }
-
-        .sprite-hair {
-          position: absolute;
-          top: 1px;
-          left: 7px;
-          width: 27px;
-          height: 13px;
-          border: 4px solid #342636;
-          background: #644052;
-          box-shadow: inset 0 -4px #c08b3c;
-        }
-
-        .sprite-face {
-          position: absolute;
-          top: 14px;
-          left: 11px;
-          width: 19px;
-          height: 14px;
-          border: 2px solid #47312d;
-          background: #f2bd79;
-        }
-
-        .sprite-body {
-          position: absolute;
-          top: 28px;
-          left: 6px;
-          width: 31px;
-          height: 26px;
-          border: 3px solid #4a3b3a;
-          box-shadow: inset 0 -5px #00000020;
-        }
-
-        .sprite-sword {
-          position: absolute;
-          top: 25px;
-          left: 29px;
-          width: 22px;
-          height: 46px;
-          transform: rotate(28deg);
-          filter: drop-shadow(1px 1px #332c29);
         }
 
         .visitor-message,
@@ -655,12 +564,6 @@ export default function ParkPage() {
           font-weight: 700;
         }
 
-        .visitor-one .visitor-message {
-          border-color: #a44c41;
-          background: #eb6453;
-          color: #fff4d5;
-        }
-
         .visitor-name {
           margin-top: 3px;
           color: #263d43;
@@ -668,166 +571,94 @@ export default function ParkPage() {
           font-weight: 700;
         }
 
-        .you-marker {
+        .empty-message {
           position: absolute;
           z-index: 3;
-          top: 31%;
-          left: 14%;
-          color: #e64e48;
-          font-size: 17px;
-          text-shadow: 1px 1px #f7e1a3;
-        }
-
-        .battle-panel {
-          display: flex;
-          min-height: 88px;
-          flex: 0 0 88px;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          padding: 10px 12px;
-          border-top: 4px solid #e25347;
-          border-bottom: 4px solid #405667;
-          background: #1a2e47;
-          color: #fff1c7;
-        }
-
-        .battle-profile {
-          display: flex;
-          min-width: 0;
-          align-items: center;
-          gap: 9px;
-        }
-
-        .battle-avatar {
-          width: 43px;
-          height: 43px;
-          font-size: 22px;
-        }
-
-        .battle-profile > div:last-child {
-          display: grid;
-          gap: 2px;
-        }
-
-        .battle-profile span,
-        .battle-profile small {
-          color: #d4c79f;
-          font-size: 7px;
-        }
-
-        .battle-profile strong {
-          font-size: 13px;
-        }
-
-        .battle-button {
-          display: grid;
-          width: 78px;
-          height: 48px;
-          flex: 0 0 78px;
-          align-content: center;
-          border: 3px solid #fff0c4;
-          background: #e95749;
-          color: #fff6d8;
-          box-shadow:
-            inset 0 0 0 2px #bf3d38,
-            2px 3px 0 #0e1c2d;
-          cursor: pointer;
+          top: 50%;
+          left: 50%;
+          width: 80%;
+          margin: 0;
+          padding: 10px;
+          transform: translate(-50%, -50%);
+          border: 3px solid #1b2c42;
+          background: #fff5d5;
+          box-shadow: 3px 3px 0 #1b2c42;
+          color: #17283b;
+          font-size: 11px;
+          font-weight: 700;
+          line-height: 1.7;
           text-align: center;
         }
 
-        .battle-button:active {
-          transform: translate(2px, 2px);
-          box-shadow: inset 0 0 0 2px #bf3d38;
-        }
-
-        .battle-button strong {
-          font-size: 16px;
-          letter-spacing: 2px;
-        }
-
-        .battle-button span {
-          font-family: monospace;
-          font-size: 6px;
-        }
-
-        .battle-button.is-battling {
-          border-color: #b6e0d2;
-          background: #347b80;
-        }
-
-        .bottom-paper {
-          position: relative;
-          min-height: 32px;
-          flex: 1 1 32px;
-          background-color: #f4d897;
-          background-image: repeating-linear-gradient(
-            to bottom,
-            transparent 0,
-            transparent 8px,
-            #e5c783 9px,
-            transparent 10px
-          );
-        }
-
-        .bottom-paper span {
+        .battle-confirm-backdrop {
           position: absolute;
-          bottom: 0;
-          left: 0;
-          width: 20%;
-          height: 4px;
-          background: #e8ba47;
-        }
-
-        .bottom-nav {
-          z-index: 4;
+          z-index: 10;
+          inset: 0;
           display: grid;
-          height: 62px;
-          flex: 0 0 62px;
-          grid-template-columns: repeat(5, 1fr);
-          border-top: 3px solid #394d62;
-          background: #1a2e47;
-          box-shadow: 0 -3px #e25347;
+          place-items: center;
+          padding: 24px;
+          background: #070d18b3;
         }
 
-        .bottom-nav button {
-          display: flex;
-          min-width: 0;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 3px;
-          border: 0;
-          border-right: 1px solid #40536a;
-          background: transparent;
-          color: #d4d7ce;
+        .battle-confirm {
+          width: 100%;
+          max-width: 300px;
+          padding: 16px;
+          border: 4px solid #fff1b1;
+          border-top-width: 6px;
+          border-top-color: #e24c42;
+          background: #192b43;
+          box-shadow: 4px 4px 0 #070d18;
+          color: #fff3cc;
+          text-align: center;
+        }
+
+        .battle-confirm-area {
+          display: inline-block;
+          margin: 0 0 10px;
+          padding: 1px 8px;
+          background: #e7b749;
+          color: #342d23;
+          font-size: 10px;
+          font-weight: 700;
+        }
+
+        .battle-confirm-title {
+          margin: 0 0 16px;
+          font-size: 16px;
+          font-weight: 900;
+          line-height: 1.6;
+        }
+
+        .battle-confirm-actions {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+
+        .battle-confirm-actions button {
+          height: 42px;
+          border: 3px solid #fff0c4;
+          color: #fff6d8;
           cursor: pointer;
-          font-size: 8px;
-        }
-
-        .bottom-nav button.active {
-          background: #29425c;
-          color: #fff2c7;
-        }
-
-        .bottom-nav button.active::before {
-          position: absolute;
-          width: 8px;
-          height: 8px;
-          margin-top: -52px;
-          transform: rotate(45deg);
-          background: #efbd4c;
-          content: "";
-        }
-
-        .nav-icon {
-          color: #f0c14b;
-          font-size: 15px;
-          line-height: 1;
-        }
-
-        .icon-items {
+          font: inherit;
           font-size: 14px;
+          font-weight: 900;
+          letter-spacing: 2px;
+          box-shadow: 2px 3px 0 #0e1c2d;
+        }
+
+        .battle-confirm-actions button:active {
+          transform: translate(2px, 2px);
+          box-shadow: none;
+        }
+
+        .confirm-yes {
+          background: #e95749;
+        }
+
+        .confirm-no {
+          background: #40536a;
         }
 
         @media (max-height: 650px) {

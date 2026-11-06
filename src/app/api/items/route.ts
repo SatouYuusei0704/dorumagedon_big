@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { CollectionEntry, Item, UserItem } from "@/types/database";
 
 /**
- * 果物図鑑（全アイテム + 自分の所持数）を返す: GET /api/items
+ * ご当地アイテム図鑑（全アイテム + 自分の所持数）を返す: GET /api/items
  * quantity が 0 のものは未入手。
  */
 export async function GET() {

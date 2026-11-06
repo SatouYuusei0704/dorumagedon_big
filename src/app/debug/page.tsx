@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AppFooter } from "@/components/ui/AppFooter";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelWindow } from "@/components/ui/PixelWindow";
 import { useAuth } from "@/features/auth";
@@ -266,12 +267,12 @@ export default function DebugPage() {
           )}
         </PixelWindow>
 
-        <PixelWindow title="果物図鑑">
+        <PixelWindow title="ご当地図鑑">
           <ul className="grid grid-cols-2 gap-1 text-sm">
             {collection.map((item) => (
               <li key={item.id}>
                 {item.quantity > 0 ? item.name : "？？？"}
-                {"★".repeat(item.rarity)} ×{item.quantity}
+                {item.icon} ×{item.quantity}
               </li>
             ))}
           </ul>
@@ -283,6 +284,9 @@ export default function DebugPage() {
         >
           ホームへもどる
         </Link>
+
+        {/* 長い画面でも押せるように下に固定する */}
+        <AppFooter className="sticky bottom-0" />
       </div>
     </main>
   );

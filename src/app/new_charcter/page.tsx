@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 // ==========================================
 // 画像のデザインに合わせたパーツデータ定義
@@ -33,6 +34,8 @@ const initialName = "ゆうしゃ";
 const initialLocation = "石川県";
 
 export default function NewCharacterPage() {
+  const router = useRouter();
+
   // 選択中インデックス（0〜3）
   const [faceIndex, setFaceIndex] = useState(0);
   const [hairIndex, setHairIndex] = useState(0);
@@ -252,6 +255,7 @@ export default function NewCharacterPage() {
         {/* 決定ボタン */}
         <button
           type="button"
+          onClick={() => router.push("/park")}
           className="w-full cursor-pointer rounded-xl border-4 border-[#0f172a] bg-[#ef4444] py-3 text-sm font-black tracking-widest text-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] transition-all hover:bg-[#dc2626] active:translate-y-1 active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
         >
           このすがたで決定！

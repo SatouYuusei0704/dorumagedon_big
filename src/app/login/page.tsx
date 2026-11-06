@@ -31,7 +31,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (loading || checkedInitialUser.current) return;
     checkedInitialUser.current = true;
-    if (user) router.replace("/plaza");
+    if (user) router.replace("/park");
   }, [loading, user, router]);
 
   const handleChange = (
@@ -75,7 +75,7 @@ export default function LoginPage() {
         router.push(`/new_character?${params}`);
       } else {
         await signIn(formData.email, formData.password);
-        router.push("/plaza");
+        router.push("/park");
       }
     } catch (error) {
       setMessage(toAuthErrorMessage(error));

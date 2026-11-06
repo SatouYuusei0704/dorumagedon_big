@@ -3,6 +3,12 @@
 import React, { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import {
+  AvatarSprite,
+  BODY_COLORS,
+  FACE_TYPES,
+  HAIR_STYLES,
+} from "@/features/avatar";
 
 // 都道府県ごとのご当地アイテムデータ
 const REGIONAL_ITEMS: Record<
@@ -86,27 +92,6 @@ const PREFECTURES = [
   "北海道",
 ];
 
-const BODY_COLORS = [
-  { name: "レッド", bg: "bg-[#e63946]" },
-  { name: "ブルー", bg: "bg-[#1d3557]" },
-  { name: "グリーン", bg: "bg-[#2a9d8f]" },
-  { name: "イエロー", bg: "bg-[#e9c46a]" },
-];
-
-const HAIR_STYLES = [
-  { name: "ダークブラウン", color: "bg-[#2b1e1a]" },
-  { name: "ブラック", color: "bg-[#18181b]" },
-  { name: "ゴールド", color: "bg-[#d97706]" },
-  { name: "シルバー", color: "bg-[#94a3b8]" },
-];
-
-const FACE_TYPES = [
-  { name: "ノーマル", eyeType: "normal" },
-  { name: "キリッ", eyeType: "sharp" },
-  { name: "にっこり", eyeType: "happy" },
-  { name: "ロボ/メガネ", eyeType: "glasses" },
-];
-
 // useSearchParams を使うため Suspense で包む（Next.js のビルド要件）
 export default function NewCharacterPage() {
   return (
@@ -138,6 +123,35 @@ function NewCharacterContent() {
     "face",
   );
   const [showItemModal, setShowItemModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  // DB に保存するアバター（広場などで他の人に表示される）
+  const avatar = {
+    skin: 0,
+    hair: hairIndex,
+    eyes: faceIndex,
+    color: BODY_COLORS[bodyColorIndex].hex,
+  };
+
+  // 決定: アバターと出身地をプロフィールに保存してからアイテム演出を出す
+  const handleDecide = async () => {
+    setSaving(true);
+    setSaveError("");
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatar, homeArea: selectedLocation }),
+      });
+      if (!res.ok) throw new Error();
+      setShowItemModal(true);
+    } catch {
+      setSaveError("ほぞんに しっぱいしました。もういちど おしてください");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const MAX_PATTERNS = 4;
 
@@ -182,58 +196,7 @@ function NewCharacterContent() {
             PREVIEW
           </div>
           <div className="relative flex h-48 w-44 items-center justify-center overflow-hidden rounded-lg border-4 border-[#0f172a] bg-sky-200 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]">
-            <div className="relative flex scale-110 flex-col items-center justify-center">
-              <div
-                className={`relative h-12 w-16 ${HAIR_STYLES[hairIndex].color} flex flex-col justify-end border-2 border-black p-1`}
-              >
-                <div className="absolute top-0 right-0 left-0 h-3 bg-black/10"></div>
-                <div className="relative z-10 flex h-8 w-full items-center justify-around border-2 border-black bg-[#f8c39d] px-1">
-                  {FACE_TYPES[faceIndex].eyeType === "normal" && (
-                    <>
-                      <div className="h-2.5 w-2.5 bg-black"></div>
-                      <div className="h-2.5 w-2.5 bg-black"></div>
-                    </>
-                  )}
-                  {FACE_TYPES[faceIndex].eyeType === "sharp" && (
-                    <>
-                      <div className="h-1.5 w-2.5 rotate-12 bg-black"></div>
-                      <div className="h-1.5 w-2.5 -rotate-12 bg-black"></div>
-                    </>
-                  )}
-                  {FACE_TYPES[faceIndex].eyeType === "happy" && (
-                    <>
-                      <div className="h-1 w-2.5 -translate-y-0.5 bg-black"></div>
-                      <div className="h-1 w-2.5 -translate-y-0.5 bg-black"></div>
-                    </>
-                  )}
-                  {FACE_TYPES[faceIndex].eyeType === "glasses" && (
-                    <div className="flex h-2 w-full items-center justify-around border border-white bg-black/80">
-                      <div className="h-1.5 w-1.5 bg-cyan-300"></div>
-                      <div className="h-1.5 w-1.5 bg-cyan-300"></div>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="relative flex items-center">
-                <div className="h-8 w-2.5 border-y-2 border-l-2 border-black bg-[#2b1e1a]"></div>
-                <div
-                  className={`h-10 w-12 ${BODY_COLORS[bodyColorIndex].bg} flex justify-center border-2 border-black`}
-                >
-                  <div className="h-full w-4 border-x-2 border-black/20 bg-white"></div>
-                </div>
-                <div className="relative flex items-center">
-                  <div className="h-8 w-2.5 border-y-2 border-r-2 border-black bg-[#2b1e1a]"></div>
-                  <div className="absolute -top-3 left-1.5 flex flex-col items-center">
-                    <div className="h-7 w-2 border border-black bg-slate-300"></div>
-                    <div className="h-1.5 w-5 border border-black bg-slate-500"></div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex w-12 justify-around gap-2">
-                <div className="h-5 w-3 border-x-2 border-b-2 border-black bg-[#18181b]"></div>
-                <div className="h-5 w-3 border-x-2 border-b-2 border-black bg-[#18181b]"></div>
-              </div>
-            </div>
+            <AvatarSprite avatar={avatar} scale={1.1} />
           </div>
         </div>
 
@@ -329,11 +292,17 @@ function NewCharacterContent() {
         {/* 決定ボタン */}
         <button
           type="button"
-          onClick={() => setShowItemModal(true)}
-          className="w-full cursor-pointer rounded-xl border-4 border-[#0f172a] bg-[#ef4444] py-3 text-sm font-black tracking-widest text-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] transition-all hover:bg-[#dc2626] active:translate-y-1 active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)]"
+          onClick={handleDecide}
+          disabled={saving}
+          className="w-full cursor-pointer rounded-xl border-4 border-[#0f172a] bg-[#ef4444] py-3 text-sm font-black tracking-widest text-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] transition-all hover:bg-[#dc2626] active:translate-y-1 active:shadow-[1px_1px_0px_0px_rgba(15,23,42,1)] disabled:opacity-60"
         >
-          このすがたで決定！
+          {saving ? "ほぞん中..." : "このすがたで決定！"}
         </button>
+        {saveError && (
+          <p className="mt-2 text-center text-[11px] font-bold text-[#ef4444]">
+            {saveError}
+          </p>
+        )}
 
         {/* 4. モーダル表示 */}
         {showItemModal && (

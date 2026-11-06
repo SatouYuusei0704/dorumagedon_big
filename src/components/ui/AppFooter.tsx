@@ -32,7 +32,7 @@ const ICONS = {
 
 /** フッターから移動できる画面 */
 const NAV_ITEMS = [
-  { href: "/plaza", label: "ひろば", icon: ICONS.plaza },
+  { href: "/park", label: "ひろば", icon: ICONS.plaza },
   { href: "/collection", label: "コレクション", icon: ICONS.collection },
   // すれ違いテスト（仮）。本番画面ができたら削除する
   { href: "/debug", label: "テスト", icon: ICONS.debug },

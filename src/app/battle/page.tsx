@@ -1,292 +1,42 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AvatarSprite } from "@/features/avatar";
+import {
+  BATTLE_RULES,
+  canUse,
+  chooseEnemyAction,
+  createBattle,
+  resolveTurn,
+  type BattleAction,
+  type BattleNames,
+  type BattleState,
+  type FighterState,
+} from "@/features/battle";
+import type {
+  BattleFighter,
+  BattleResultResponse,
+  BattleSetupResponse,
+} from "@/types/database";
 
-// 都道府県ごとのご当地アイテムデータ（右手：武器 / 左手：盾・サブアイテム）
-const REGIONAL_ITEMS: Record<
-  string,
-  { name: string; rightIcon: string; leftIcon: string }
-> = {
-  青森県: { name: "りんごのつるぎ", rightIcon: "🍎🗡️", leftIcon: "🍎" },
-  滋賀県: { name: "琵琶湖の大ナマズ剣", rightIcon: "🐟🗡️", leftIcon: "🛡️" },
-  石川県: { name: "金箔のつるぎ", rightIcon: "✨🗡️", leftIcon: "✨🛡️" },
-  群馬県: { name: "上州ダルマのかぶと", rightIcon: "🗡️", leftIcon: "🔴" },
-  静岡県: { name: "茶摘みのやいば", rightIcon: "🍃🗡️", leftIcon: "🍃" },
-  長野県: { name: "信州そばの盾", rightIcon: "🗡️", leftIcon: "🍜🛡️" },
-  京都府: { name: "八ツ橋のかぶと", rightIcon: "🗡️", leftIcon: "🍡" },
-  福井県: { name: "恐竜の化石ブレード", rightIcon: "🦖🗡️", leftIcon: "🦴🛡️" },
-  島根県: { name: "勾玉のおまもり", rightIcon: "🗡️", leftIcon: "☯️✨" },
-  東京都: { name: "タワーのたて", rightIcon: "🗡️", leftIcon: "🗼🛡️" },
-  大阪府: { name: "なにわのハリセン", rightIcon: "🪭", leftIcon: "🛡️" },
-  北海道: { name: "木彫りのくま", rightIcon: "🐻🗡️", leftIcon: "🐟" },
-};
+/** ログを 1 行ずつ出す間隔 */
+const LOG_STEP_MS = 450;
+/** ログ欄に残す行数 */
+const LOG_LINES = 4;
 
-const DEFAULT_ITEM = { name: "旅人のつるぎ", rightIcon: "🗡️", leftIcon: "🛡️" };
-
-const BODY_COLORS = [
-  "bg-[#e63946]",
-  "bg-[#1d3557]",
-  "bg-[#2a9d8f]",
-  "bg-[#e9c46a]",
-];
-const HAIR_STYLES = [
-  "bg-[#2b1e1a]",
-  "bg-[#18181b]",
-  "bg-[#d97706]",
-  "bg-[#94a3b8]",
-];
-
-interface Fighter {
-  name: string;
-  location: string;
-  hp: number;
-  maxHp: number;
-  itemName: string;
-  rightItemIcon: string;
-  leftItemIcon: string;
-  bodyColor: string;
-  hairColor: string;
-}
-
-function BattleContent() {
-  const searchParams = useSearchParams();
-
-  // 1. プレイヤー状態（クエリパラメータから取得して動的更新）
-  const [player, setPlayer] = useState<Fighter>({
-    name: "ゆうしゃ",
-    location: "石川県",
-    hp: 100,
-    maxHp: 100,
-    itemName: "金箔のつるぎ",
-    rightItemIcon: "✨🗡️",
-    leftItemIcon: "✨🛡️",
-    bodyColor: "bg-[#e63946]",
-    hairColor: "bg-[#2b1e1a]",
-  });
-
-  // 2. 敵状態（指定通り固定）
-  const [enemy, setEnemy] = useState<Fighter>({
-    name: "たろう",
-    location: "青森県",
-    hp: 100,
-    maxHp: 100,
-    itemName: "りんごのつるぎ",
-    rightItemIcon: "🍎🗡️",
-    leftItemIcon: "🍎",
-    bodyColor: "bg-[#1d3557]",
-    hairColor: "bg-[#d97706]",
-  });
-
-  // URLからプレイヤーの情報を取得して反映
-  useEffect(() => {
-    const queryName = searchParams.get("name") || "ゆうしゃ";
-    const queryLocation = searchParams.get("location") || "石川県";
-    const hairIdx = parseInt(searchParams.get("hair") || "0", 10);
-    const bodyIdx = parseInt(searchParams.get("body") || "0", 10);
-
-    const item = REGIONAL_ITEMS[queryLocation] || DEFAULT_ITEM;
-
-    setPlayer({
-      name: queryName,
-      location: queryLocation,
-      hp: 100,
-      maxHp: 100,
-      itemName: item.name,
-      rightItemIcon: item.rightIcon,
-      leftItemIcon: item.leftIcon,
-      bodyColor: BODY_COLORS[bodyIdx] || BODY_COLORS[0],
-      hairColor: HAIR_STYLES[hairIdx] || HAIR_STYLES[0],
-    });
-  }, [searchParams]);
-
-  const [logs, setLogs] = useState<string[]>([
-    `${enemy.location}の ${enemy.name} が あらわれた！`,
-    `コマンドを えらんでね！`,
-  ]);
-  const [isBattleEnd, setIsBattleEnd] = useState(false);
-
-  const addLog = (msg: string) => {
-    setLogs((prev) => [...prev.slice(-3), msg]);
-  };
-
-  const handleAttack = () => {
-    if (isBattleEnd) return;
-
-    const damage = Math.floor(Math.random() * 15) + 15;
-    const newEnemyHp = Math.max(0, enemy.hp - damage);
-    setEnemy((prev) => ({ ...prev, hp: newEnemyHp }));
-    addLog(
-      `${player.name} の こうげき！ ${enemy.name} に ${damage} のダメージ！`,
-    );
-
-    if (newEnemyHp === 0) {
-      addLog(`かんぜんしょうり！ ${enemy.name} を たおした！`);
-      setIsBattleEnd(true);
-      return;
-    }
-
-    setTimeout(() => {
-      const enemyDamage = Math.floor(Math.random() * 12) + 10;
-      setPlayer((prev) => {
-        const newPlayerHp = Math.max(0, prev.hp - enemyDamage);
-        if (newPlayerHp === 0) {
-          addLog(`${player.name} は たおれてしまった…`);
-          setIsBattleEnd(true);
-        }
-        return { ...prev, hp: newPlayerHp };
-      });
-      addLog(
-        `${enemy.name} の はんげき！ ${player.name} は ${enemyDamage} のダメージ！`,
-      );
-    }, 800);
-  };
-
-  const handleSpecialSkill = () => {
-    if (isBattleEnd) return;
-
-    const damage = Math.floor(Math.random() * 20) + 25;
-    const newEnemyHp = Math.max(0, enemy.hp - damage);
-    setEnemy((prev) => ({ ...prev, hp: newEnemyHp }));
-    addLog(`${player.name} は 【${player.itemName}】 のひっさつわざ！`);
-    addLog(`${enemy.name} に ${damage} の だいだめーじ！`);
-
-    if (newEnemyHp === 0) {
-      addLog(`かんぜんしょうり！ ${enemy.name} を たおした！`);
-      setIsBattleEnd(true);
-      return;
-    }
-
-    setTimeout(() => {
-      const enemyDamage = Math.floor(Math.random() * 12) + 10;
-      setPlayer((prev) => {
-        const newPlayerHp = Math.max(0, prev.hp - enemyDamage);
-        if (newPlayerHp === 0) {
-          addLog(`${player.name} は たおれてしまった…`);
-          setIsBattleEnd(true);
-        }
-        return { ...prev, hp: newPlayerHp };
-      });
-      addLog(
-        `${enemy.name} の こうげき！ ${player.name} は ${enemyDamage} のダメージ！`,
-      );
-    }, 800);
-  };
-
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-[#1e293b] p-2 font-mono selection:bg-[#e11d48] selection:text-white">
-      <div className="relative flex min-h-[750px] w-full max-w-[420px] flex-col justify-between overflow-hidden rounded-2xl border-4 border-[#0f172a] bg-[#fef08a] p-4 shadow-[8px_8px_0px_0px_rgba(15,23,42,1)]">
-        {/* ヘッダー */}
-        <div className="mb-3 flex items-center justify-between rounded-lg border-2 border-black bg-[#0f172a] p-2 text-white">
-          <Link
-            href="/start"
-            className="rounded border border-white/40 bg-[#334155] px-2 py-1 text-xs hover:bg-[#475569]"
-          >
-            ◀ にげる
-          </Link>
-          <h1 className="text-sm font-bold tracking-wider text-[#ef4444]">
-            ⚔️ すれちがいバトル
-          </h1>
-          <div className="w-12"></div>
-        </div>
-
-        {/* 1. 対戦ステージ */}
-        <div className="relative mb-4 flex min-h-[360px] flex-1 flex-col justify-between rounded-xl border-4 border-[#0f172a] bg-[#7dd3fc] p-4 shadow-inner">
-          {/* ライバル（敵） */}
-          <div className="flex items-start justify-between">
-            <div className="w-48 rounded-lg border-2 border-black bg-[#0f172a] p-2.5 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)]">
-              <div className="flex justify-between text-[11px] font-bold text-[#facc15]">
-                <span>{enemy.name}</span>
-                <span>{enemy.location}</span>
-              </div>
-              <div className="relative mt-1.5 h-3.5 w-full overflow-hidden rounded-full border border-black bg-slate-700">
-                <div
-                  className="h-full bg-emerald-400 transition-all duration-300"
-                  style={{ width: `${(enemy.hp / enemy.maxHp) * 100}%` }}
-                ></div>
-              </div>
-              <div className="mt-1 text-right text-[10px] font-bold text-slate-300">
-                HP {enemy.hp}/{enemy.maxHp}
-              </div>
-            </div>
-
-            <div className="mt-2 mr-2 origin-top-right scale-110">
-              <AvatarGraphic fighter={enemy} isEnemy={true} />
-            </div>
-          </div>
-
-          {/* 中央 VS ロゴ */}
-          <div className="my-3 self-center rounded-lg border-3 border-black bg-[#facc15] px-4 py-1 text-sm font-black tracking-widest text-[#0f172a] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-            VS
-          </div>
-
-          {/* プレイヤー（自分） */}
-          <div className="flex items-end justify-between">
-            <div className="mb-2 ml-2 origin-bottom-left scale-110">
-              <AvatarGraphic fighter={player} isEnemy={false} />
-            </div>
-
-            <div className="w-48 rounded-lg border-2 border-black bg-[#0f172a] p-2.5 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)]">
-              <div className="flex justify-between text-[11px] font-bold text-[#facc15]">
-                <span>{player.name}</span>
-                <span>{player.location}</span>
-              </div>
-              <div className="relative mt-1.5 h-3.5 w-full overflow-hidden rounded-full border border-black bg-slate-700">
-                <div
-                  className="h-full bg-emerald-400 transition-all duration-300"
-                  style={{ width: `${(player.hp / player.maxHp) * 100}%` }}
-                ></div>
-              </div>
-              <div className="mt-1 text-right text-[10px] font-bold text-slate-300">
-                HP {player.hp}/{player.maxHp}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 2. ログ */}
-        <div className="mb-3 flex h-24 flex-col justify-end overflow-hidden rounded-xl border-4 border-[#0f172a] bg-[#1e293b] p-3 text-xs leading-relaxed text-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]">
-          {logs.map((log, index) => (
-            <p key={index}>▶ {log}</p>
-          ))}
-        </div>
-
-        {/* 3. コマンド */}
-        {!isBattleEnd ? (
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={handleAttack}
-              className="cursor-pointer rounded-xl border-4 border-[#0f172a] bg-[#ef4444] py-3.5 text-xs font-black text-white shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] hover:bg-[#dc2626] active:translate-y-0.5"
-            >
-              ⚔️ こうげき
-            </button>
-            <button
-              onClick={handleSpecialSkill}
-              className="flex cursor-pointer items-center justify-center gap-1 rounded-xl border-4 border-[#0f172a] bg-[#f59e0b] py-3.5 text-xs font-black text-white shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] hover:bg-[#d97706] active:translate-y-0.5"
-            >
-              <span>{player.rightItemIcon}</span> ご当地わざ
-            </button>
-          </div>
-        ) : (
-          <Link
-            href="/start"
-            className="block w-full rounded-xl border-4 border-[#0f172a] bg-[#3b82f6] py-3.5 text-center text-xs font-black tracking-widest text-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] hover:bg-[#2563eb] active:translate-y-0.5"
-          >
-            ひろばへ もどる ➔
-          </Link>
-        )}
-      </div>
-    </main>
-  );
-}
+type SaveState =
+  | { status: "idle" | "saving" }
+  | { status: "saved"; result: BattleResultResponse }
+  | { status: "error" };
 
 export default function BattlePage() {
   return (
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center bg-[#1e293b] text-white">
-          Loading...
+          よみこみ中...
         </div>
       }
     >
@@ -295,59 +45,483 @@ export default function BattlePage() {
   );
 }
 
-// ドットアバター描画コンポーネント
-function AvatarGraphic({
+function BattleContent() {
+  const router = useRouter();
+  const opponentId = useSearchParams().get("opponent") ?? "";
+
+  const [setup, setSetup] = useState<BattleSetupResponse | null>(null);
+  const [loadError, setLoadError] = useState("");
+  const [battle, setBattle] = useState<BattleState>(createBattle);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  /** ダメージ演出をやり直すためのカウンター */
+  const [hits, setHits] = useState({ player: 0, enemy: 0 });
+  const [save, setSave] = useState<SaveState>({ status: "idle" });
+  const timers = useRef<number[]>([]);
+
+  // 自分と敵（すれ違った相手）のデータを読み込む
+  useEffect(() => {
+    if (!opponentId) {
+      setLoadError("たたかう あいてが えらばれていません");
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/battles/setup?opponent=${encodeURIComponent(opponentId)}`)
+      .then(async (res) => {
+        if (res.status === 401) {
+          router.replace("/login");
+          return;
+        }
+        if (res.status === 403) {
+          throw new Error("すれちがった ことのない あいてとは たたかえません");
+        }
+        if (!res.ok) throw new Error("データを よみこめませんでした");
+        const data = (await res.json()) as BattleSetupResponse;
+        if (cancelled) return;
+        setSetup(data);
+        setLogs([
+          `${data.enemy.profile.home_area ?? "なぞの ちいき"}の ${data.enemy.profile.nickname} が あらわれた！`,
+          "コマンドを えらんでね！",
+        ]);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          setLoadError(e instanceof Error ? e.message : "通信に失敗しました");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [opponentId, router]);
+
+  useEffect(() => {
+    const pending = timers.current;
+    return () => pending.forEach((id) => window.clearTimeout(id));
+  }, []);
+
+  // 決着したら結果をサーバーに記録する（1 バトル 1 回）
+  useEffect(() => {
+    if (!battle.winner || !setup || save.status !== "idle") return;
+    setSave({ status: "saving" });
+    fetch("/api/battles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        opponentId: setup.enemy.profile.id,
+        won: battle.winner === "player",
+      }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error();
+        const result = (await res.json()) as BattleResultResponse;
+        setSave({ status: "saved", result });
+      })
+      .catch(() => setSave({ status: "error" }));
+  }, [battle.winner, setup, save.status]);
+
+  const act = useCallback(
+    (action: BattleAction) => {
+      if (!setup || busy || battle.winner) return;
+      const names: BattleNames = {
+        player: setup.player.profile.nickname,
+        enemy: setup.enemy.profile.nickname,
+        playerMove: setup.player.move.name,
+        enemyMove: setup.enemy.move.name,
+      };
+      const enemyAction = chooseEnemyAction(battle, Math.random);
+      const turn = resolveTurn(battle, action, enemyAction, names, Math.random);
+
+      // ログを 1 行ずつ流し、流し終わってから HP などを反映する
+      setBusy(true);
+      turn.log.forEach((line, i) => {
+        timers.current.push(
+          window.setTimeout(
+            () => setLogs((prev) => [...prev, line].slice(-LOG_LINES)),
+            i * LOG_STEP_MS,
+          ),
+        );
+      });
+      timers.current.push(
+        window.setTimeout(
+          () => {
+            setBattle(turn.state);
+            setHits((prev) => ({
+              player: prev.player + (turn.hit.player > 0 ? 1 : 0),
+              enemy: prev.enemy + (turn.hit.enemy > 0 ? 1 : 0),
+            }));
+            setBusy(false);
+          },
+          Math.max(0, turn.log.length - 1) * LOG_STEP_MS,
+        ),
+      );
+    },
+    [setup, busy, battle],
+  );
+
+  const restart = () => {
+    if (!setup) return;
+    setBattle(createBattle());
+    setSave({ status: "idle" });
+    setLogs([`${setup.enemy.profile.nickname} が また あらわれた！`]);
+  };
+
+  if (loadError) {
+    return (
+      <Shell>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+          <p className="text-sm font-bold text-[#0f172a]">{loadError}</p>
+          <Link
+            href="/park"
+            className="rounded-xl border-4 border-[#0f172a] bg-[#3b82f6] px-6 py-3 text-xs font-black text-white shadow-[3px_3px_0px_0px_rgba(15,23,42,1)]"
+          >
+            ひろばへ もどる
+          </Link>
+        </div>
+      </Shell>
+    );
+  }
+
+  if (!setup) {
+    return (
+      <Shell>
+        <p className="flex flex-1 items-center justify-center text-sm font-bold text-[#0f172a]">
+          あいてを さがしています…
+        </p>
+      </Shell>
+    );
+  }
+
+  const { player, enemy } = battle;
+
+  return (
+    <Shell>
+      {/* 対戦ステージ */}
+      <div className="relative mb-3 flex min-h-[360px] flex-1 flex-col justify-between rounded-xl border-4 border-[#0f172a] bg-[#7dd3fc] p-3 shadow-inner">
+        <div className="flex items-start justify-between gap-2">
+          <StatusPanel fighter={setup.enemy} state={enemy} />
+          <FighterSprite
+            fighter={setup.enemy}
+            hitKey={hits.enemy}
+            mirrored
+            down={battle.winner === "player"}
+          />
+        </div>
+
+        <div className="my-2 self-center rounded-lg border-[3px] border-black bg-[#facc15] px-4 py-1 text-sm font-black tracking-widest text-[#0f172a] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+          TURN {battle.turn}
+        </div>
+
+        <div className="flex items-end justify-between gap-2">
+          <FighterSprite
+            fighter={setup.player}
+            hitKey={hits.player}
+            down={battle.winner === "enemy"}
+          />
+          <StatusPanel fighter={setup.player} state={player} />
+        </div>
+      </div>
+
+      {/* ログ */}
+      <div
+        className="mb-3 flex h-24 flex-col justify-end overflow-hidden rounded-xl border-4 border-[#0f172a] bg-[#1e293b] p-3 text-xs leading-relaxed text-white shadow-[4px_4px_0px_0px_rgba(15,23,42,1)]"
+        aria-live="polite"
+      >
+        {logs.map((log, index) => (
+          <p key={`${index}-${log}`}>▶ {log}</p>
+        ))}
+      </div>
+
+      {/* コマンド / 結果 */}
+      {battle.winner ? (
+        <ResultPanel
+          won={battle.winner === "player"}
+          enemyName={setup.enemy.profile.nickname}
+          save={save}
+          onRestart={restart}
+        />
+      ) : (
+        <div className="grid grid-cols-3 gap-2">
+          <CommandButton
+            color="bg-[#ef4444] hover:bg-[#dc2626]"
+            disabled={busy}
+            onClick={() => act("attack")}
+            title="⚔️ こうげき"
+            sub={`エネルギー+${BATTLE_RULES.attack.energy}`}
+          />
+          <CommandButton
+            color="bg-[#f59e0b] hover:bg-[#d97706]"
+            disabled={busy || !canUse(player, "special")}
+            onClick={() => act("special")}
+            title={`${setup.player.move.icon} ご当地わざ`}
+            sub={
+              canUse(player, "special")
+                ? setup.player.move.name
+                : `エネルギー${BATTLE_RULES.special.cost}ひつよう`
+            }
+          />
+          <CommandButton
+            color="bg-[#2563eb] hover:bg-[#1d4ed8]"
+            disabled={busy || !canUse(player, "guard")}
+            onClick={() => act("guard")}
+            title="🛡️ ガード"
+            sub={`のこり ${player.guardsLeft}かい`}
+          />
+        </div>
+      )}
+    </Shell>
+  );
+}
+
+/** 画面の外枠とヘッダー */
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="flex min-h-dvh items-center justify-center bg-[#1e293b] p-2 font-mono">
+      <div className="relative flex min-h-[720px] w-full max-w-[420px] flex-col overflow-hidden rounded-2xl border-4 border-[#0f172a] bg-[#fef08a] p-3 shadow-[8px_8px_0px_0px_rgba(15,23,42,1)]">
+        <div className="mb-3 flex items-center justify-between rounded-lg border-2 border-black bg-[#0f172a] p-2 text-white">
+          <Link
+            href="/park"
+            className="rounded border border-white/40 bg-[#334155] px-2 py-1 text-xs hover:bg-[#475569]"
+          >
+            ◀ にげる
+          </Link>
+          <h1 className="text-sm font-bold tracking-wider text-[#ef4444]">
+            ⚔️ すれちがいバトル
+          </h1>
+          <div className="w-12" />
+        </div>
+        {children}
+      </div>
+      <style jsx global>{`
+        @keyframes battle-hit {
+          0%,
+          100% {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          20% {
+            transform: translateX(-6px);
+            opacity: 0.3;
+          }
+          40% {
+            transform: translateX(6px);
+            opacity: 1;
+          }
+          60% {
+            transform: translateX(-4px);
+            opacity: 0.3;
+          }
+          80% {
+            transform: translateX(4px);
+          }
+        }
+        .battle-hit {
+          animation: battle-hit 0.4s steps(5);
+        }
+      `}</style>
+    </main>
+  );
+}
+
+/** 名前・HP・エネルギー・ガード回数 */
+function StatusPanel({
   fighter,
-  isEnemy,
+  state,
 }: {
-  fighter: Fighter;
-  isEnemy: boolean;
+  fighter: BattleFighter;
+  state: FighterState;
+}) {
+  const hpRate = state.hp / BATTLE_RULES.maxHp;
+  const energyRate = state.energy / BATTLE_RULES.maxEnergy;
+  const specialReady = state.energy >= BATTLE_RULES.special.cost;
+  return (
+    <div className="w-44 shrink-0 rounded-lg border-2 border-black bg-[#0f172a] p-2 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)]">
+      <div className="flex justify-between gap-1 text-[11px] font-bold text-[#facc15]">
+        <span className="truncate">{fighter.profile.nickname}</span>
+        <span className="shrink-0">{fighter.profile.home_area ?? "？"}</span>
+      </div>
+      <Bar
+        rate={hpRate}
+        color={
+          hpRate > 0.5
+            ? "bg-emerald-400"
+            : hpRate > 0.2
+              ? "bg-yellow-400"
+              : "bg-red-500"
+        }
+        label={`HP ${state.hp}/${BATTLE_RULES.maxHp}`}
+      />
+      <Bar
+        rate={energyRate}
+        color={specialReady ? "bg-orange-400" : "bg-sky-400"}
+        label={`EN ${state.energy}`}
+        thin
+      />
+      <div className="mt-1 flex items-center justify-between text-[10px] text-slate-300">
+        <span>
+          {"🛡️".repeat(state.guardsLeft)}
+          {state.guardsLeft === 0 && "ガードなし"}
+        </span>
+        {specialReady && (
+          <span className="font-bold text-orange-300">わざOK!</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Bar({
+  rate,
+  color,
+  label,
+  thin = false,
+}: {
+  rate: number;
+  color: string;
+  label: string;
+  thin?: boolean;
 }) {
   return (
-    <div
-      className={`relative flex scale-125 flex-col items-center justify-center ${isEnemy ? "-scale-x-125" : ""}`}
-    >
+    <div className="mt-1">
       <div
-        className={`relative h-12 w-16 ${fighter.hairColor} flex flex-col justify-end border-2 border-black p-0.5`}
+        className={`relative w-full overflow-hidden rounded-full border border-black bg-slate-700 ${thin ? "h-2" : "h-3"}`}
       >
-        <div className="relative z-10 flex h-8 w-full items-center justify-around border-2 border-black bg-[#f8c39d] px-1">
-          <div className="h-2.5 w-2.5 bg-black"></div>
-          <div className="h-2.5 w-2.5 bg-black"></div>
-        </div>
-      </div>
-
-      <div className="relative flex items-center">
-        {/* 左手 ＋ アイテム */}
-        <div className="relative flex items-center">
-          <div className="h-8 w-2.5 border-y-2 border-l-2 border-black bg-[#2b1e1a]"></div>
-          <div className="absolute -top-3 -left-3 z-25 flex items-center justify-center">
-            <span className="text-sm drop-shadow-[1px_1px_0px_#000]">
-              {fighter.leftItemIcon}
-            </span>
-          </div>
-        </div>
-
-        {/* 胴体 */}
         <div
-          className={`h-10 w-12 ${fighter.bodyColor} flex justify-center border-2 border-black`}
-        >
-          <div className="h-full w-4 border-x-2 border-black/20 bg-white"></div>
-        </div>
+          className={`h-full transition-all duration-300 ${color}`}
+          style={{ width: `${Math.max(0, Math.min(1, rate)) * 100}%` }}
+        />
+      </div>
+      <div className="text-right text-[9px] font-bold text-slate-300">
+        {label}
+      </div>
+    </div>
+  );
+}
 
-        {/* 右手 ＋ アイテム */}
-        <div className="relative flex items-center">
-          <div className="h-8 w-2.5 border-y-2 border-r-2 border-black bg-[#2b1e1a]"></div>
-          <div className="absolute -top-4 -left-1 z-20 flex items-center justify-center">
-            <span className="text-base drop-shadow-[1px_1px_0px_#000]">
-              {fighter.rightItemIcon}
-            </span>
-          </div>
+/** アバターとご当地わざのアイテム */
+function FighterSprite({
+  fighter,
+  hitKey,
+  mirrored = false,
+  down = false,
+}: {
+  fighter: BattleFighter;
+  hitKey: number;
+  mirrored?: boolean;
+  down?: boolean;
+}) {
+  return (
+    <div className="relative flex h-32 w-24 items-center justify-center">
+      {/* 向き・倒れた表示と、ダメージ演出（transform を使う）は別の要素に分ける */}
+      <div
+        style={{
+          transform: mirrored ? "scaleX(-1)" : undefined,
+          opacity: down ? 0.35 : 1,
+          filter: down ? "grayscale(1)" : undefined,
+        }}
+      >
+        <div key={hitKey} className={hitKey > 0 ? "battle-hit" : ""}>
+          <AvatarSprite avatar={fighter.profile.avatar} scale={1} />
         </div>
       </div>
+      <span
+        className="absolute -top-1 rounded border-2 border-black bg-white px-1 text-sm"
+        style={mirrored ? { left: 0 } : { right: 0 }}
+        title={fighter.move.name}
+      >
+        {fighter.move.icon}
+      </span>
+    </div>
+  );
+}
 
-      <div className="flex w-12 justify-around gap-2">
-        <div className="h-5 w-3 border-x-2 border-b-2 border-black bg-[#18181b]"></div>
-        <div className="h-5 w-3 border-x-2 border-b-2 border-black bg-[#18181b]"></div>
+function CommandButton({
+  title,
+  sub,
+  color,
+  disabled,
+  onClick,
+}: {
+  title: string;
+  sub: string;
+  color: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex flex-col items-center justify-center gap-0.5 rounded-xl border-4 border-[#0f172a] px-1 py-2.5 text-white shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] active:translate-y-0.5 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:shadow-none ${color}`}
+    >
+      <span className="text-xs font-black">{title}</span>
+      <span className="w-full truncate text-[9px] font-bold opacity-90">
+        {sub}
+      </span>
+    </button>
+  );
+}
+
+function ResultPanel({
+  won,
+  enemyName,
+  save,
+  onRestart,
+}: {
+  won: boolean;
+  enemyName: string;
+  save: SaveState;
+  onRestart: () => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div
+        className={`rounded-xl border-4 border-[#0f172a] p-3 text-center ${won ? "bg-[#fde68a]" : "bg-slate-200"}`}
+      >
+        <p
+          className={`text-lg font-black tracking-widest ${won ? "text-[#e11d48]" : "text-slate-700"}`}
+        >
+          {won ? "★ WIN! ★" : "LOSE…"}
+        </p>
+        {save.status === "saving" && (
+          <p className="text-[11px] font-bold">きろく中…</p>
+        )}
+        {save.status === "error" && (
+          <p className="text-[11px] font-bold text-red-700">
+            けっかを きろくできませんでした
+          </p>
+        )}
+        {save.status === "saved" &&
+          (save.result.reward ? (
+            <p className="text-xs font-bold">
+              {enemyName}から
+              <span className="mx-1 text-xl">{save.result.reward.icon}</span>
+              <span className="text-[#ef4444]">{save.result.reward.name}</span>
+              を てにいれた！
+            </p>
+          ) : (
+            <p className="text-[11px] font-bold">
+              {won
+                ? `きょうは もう ${enemyName}から アイテムを もらっています`
+                : "つぎは まけないぞ！"}
+            </p>
+          ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={onRestart}
+          disabled={save.status === "saving"}
+          className="rounded-xl border-4 border-[#0f172a] bg-[#f59e0b] py-3 text-xs font-black text-white shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] active:translate-y-0.5 disabled:opacity-60"
+        >
+          もういちど
+        </button>
+        <Link
+          href="/park"
+          className="block rounded-xl border-4 border-[#0f172a] bg-[#3b82f6] py-3 text-center text-xs font-black text-white shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] active:translate-y-0.5"
+        >
+          ひろばへ もどる
+        </Link>
       </div>
     </div>
   );

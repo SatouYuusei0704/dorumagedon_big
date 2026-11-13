@@ -10,6 +10,7 @@ import {
   chooseEnemyAction,
   createBattle,
   resolveTurn,
+  traitOf,
   type BattleAction,
   type BattleNames,
   type BattleState,
@@ -79,6 +80,9 @@ function BattleContent() {
         const data = (await res.json()) as BattleSetupResponse;
         if (cancelled) return;
         setSetup(data);
+        setBattle(
+          createBattle(data.player.move.category, data.enemy.move.category),
+        );
         setLogs([
           `${data.enemy.profile.home_area ?? "なぞの ちいき"}の ${data.enemy.profile.nickname} が あらわれた！`,
           "コマンドを えらんでね！",
@@ -160,7 +164,9 @@ function BattleContent() {
 
   const restart = () => {
     if (!setup) return;
-    setBattle(createBattle());
+    setBattle(
+      createBattle(setup.player.move.category, setup.enemy.move.category),
+    );
     setSave({ status: "idle" });
     setLogs([`${setup.enemy.profile.nickname} が また あらわれた！`]);
   };
@@ -330,7 +336,8 @@ function StatusPanel({
   fighter: BattleFighter;
   state: FighterState;
 }) {
-  const hpRate = state.hp / BATTLE_RULES.maxHp;
+  const hpRate = state.hp / state.maxHp;
+  const trait = traitOf(fighter.move.category);
   const energyRate = state.energy / BATTLE_RULES.maxEnergy;
   const specialReady = state.energy >= BATTLE_RULES.special.cost;
   return (
@@ -348,7 +355,7 @@ function StatusPanel({
               ? "bg-yellow-400"
               : "bg-red-500"
         }
-        label={`HP ${state.hp}/${BATTLE_RULES.maxHp}`}
+        label={`HP ${state.hp}/${state.maxHp}`}
       />
       <Bar
         rate={energyRate}
@@ -365,6 +372,9 @@ function StatusPanel({
           <span className="font-bold text-orange-300">わざOK!</span>
         )}
       </div>
+      <p className="mt-1 truncate border-t border-white/20 pt-1 text-[9px] text-slate-300">
+        {fighter.move.icon} {trait.label}: {trait.effect}
+      </p>
     </div>
   );
 }

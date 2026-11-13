@@ -8,6 +8,8 @@ export type Profile = {
   avatar: AvatarData;
   /** そうび中のアイテム（バトルのご当地わざになる） */
   equipped_item_id: number | null;
+  /** はじめのご当地アイテムを受け取ったか */
+  starter_claimed: boolean;
   created_at: string;
 };
 
@@ -29,6 +31,9 @@ export type Encounter = {
   item_to_b: number | null;
 };
 
+/** アイテムのタイプ（そうびしたときのバトル効果が変わる） */
+export type ItemCategory = "basic" | "sword" | "shield" | "helmet" | "charm";
+
 export type Item = {
   id: number;
   slug: string;
@@ -39,6 +44,7 @@ export type Item = {
   /** 表示用の絵文字（ドット絵ができたら差し替える） */
   icon: string;
   description: string;
+  category: ItemCategory;
 };
 
 export type Battle = {
@@ -87,6 +93,12 @@ export type EncounterHistoryEntry = {
 
 /** GET /api/items のレスポンス要素（図鑑） */
 export type CollectionEntry = Item & { quantity: number };
+
+/** POST /api/items/starter のレスポンス */
+export type StarterItemResponse = {
+  /** 今回もらったアイテム（すでに受け取っていれば null） */
+  item: Item | null;
+};
 
 /** バトルに出るキャラクター */
 export type BattleFighter = {

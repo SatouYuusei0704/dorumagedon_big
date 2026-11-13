@@ -7,7 +7,11 @@ import { useAuth } from "@/features/auth";
 import { AvatarSprite } from "@/features/avatar";
 import type { GeoStatus } from "@/features/encounter";
 import { useEncounterEvents } from "@/features/notification";
-import type { EncounterHistoryEntry, PublicProfile } from "@/types/database";
+import type {
+  EncounterHistoryEntry,
+  Profile,
+  PublicProfile,
+} from "@/types/database";
 
 /** 広場に表示する最大人数（立ち位置の数） */
 const MAX_VISITORS = 8;
@@ -38,6 +42,7 @@ export default function ParkPage() {
   const { user, loading } = useAuth();
   const [history, setHistory] = useState<EncounterHistoryEntry[] | null>(null);
   const [selected, setSelected] = useState<PublicProfile | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const { geoStatus, encounterVersion } = useEncounterEvents();
 
   // 未ログインならログイン画面へ。ログイン済みならすれ違い履歴を読み込む
@@ -53,6 +58,15 @@ export default function ParkPage() {
       .then(setHistory)
       .catch(() => setHistory([]));
   }, [loading, user, router, encounterVersion]);
+
+  // ヘッダーに出す自分のプロフィール
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/profile")
+      .then((res) => (res.ok ? res.json() : null))
+      .then(setProfile)
+      .catch(() => setProfile(null));
+  }, [user]);
 
   // すれ違った人（重複なし・新しい順）。退会したユーザーは除く
   const partners = useMemo(() => {
@@ -76,10 +90,14 @@ export default function ParkPage() {
       <section className="park-screen" aria-label="すれちがい広場">
         <header className="game-header">
           <div className="player-emblem" aria-hidden="true">
-            勇
+            {profile ? [...profile.nickname][0] : "…"}
           </div>
           <div className="header-player">
-            <p>ご当地ハンター</p>
+            <p>
+              {profile
+                ? `${profile.nickname}（${profile.home_area ?? "出身地ふめい"}）`
+                : "よみこみ中…"}
+            </p>
             <span className={geoStatus === "active" ? "" : "geo-warn"}>
               {GEO_LABELS[geoStatus]}
             </span>

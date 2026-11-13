@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 /** ログインが必要な画面 */
-const PROTECTED_PATHS = ["/park", "/collection", "/status", "/battle"];
+const PROTECTED_PATHS = ["/park", "/collection", "/status", "/battle", "/shop"];
 
 /**
  * リクエストごとに Supabase のセッション（cookie）を更新し、

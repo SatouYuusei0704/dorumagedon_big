@@ -2,9 +2,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  BATTLE_ITEMS,
   BATTLE_RULES,
   ITEM_TRAITS,
   canUse,
+  canUseItem,
   chooseEnemyAction,
   createBattle,
   resolveTurn,
@@ -45,6 +47,8 @@ describe("createBattle", () => {
       assert.equal(f.energy, 0);
       assert.equal(f.guardsLeft, BATTLE_RULES.guard.uses);
       assert.equal(f.specialBonus, 0);
+      assert.equal(f.attackBonus, 0);
+      assert.equal(f.itemsLeft, BATTLE_RULES.itemUses);
     }
     assert.equal(turn, 1);
     assert.equal(winner, null);
@@ -244,6 +248,102 @@ describe("resolveTurn", () => {
     const copy = structuredClone(start);
     resolveTurn(start, "attack", "attack", names, fixed(0.5));
     assert.deepEqual(start, copy);
+  });
+});
+
+describe("どうぐ", () => {
+  it("かいふくドリンク: HP が回復し、そのターンは攻撃しない（敵は攻撃する）", () => {
+    const { state, hit } = resolveTurn(
+      battleWith({ hp: 40 }),
+      { item: "potion" },
+      "attack",
+      names,
+      fixed(0),
+    );
+    assert.equal(hit.enemy, 0);
+    assert.equal(state.enemy.hp, BATTLE_RULES.maxHp);
+    assert.equal(
+      state.player.hp,
+      40 + BATTLE_ITEMS.potion.heal - BATTLE_RULES.attack.min,
+    );
+    assert.equal(state.player.itemsLeft, BATTLE_RULES.itemUses - 1);
+    assert.equal(state.player.energy, 0);
+  });
+
+  it("かいふくは さいだいHP をこえない", () => {
+    const { state } = resolveTurn(
+      battleWith({ hp: 95 }),
+      { item: "potion" },
+      "guard",
+      names,
+      fixed(0),
+    );
+    assert.equal(state.player.hp, BATTLE_RULES.maxHp);
+  });
+
+  it("パワーだんご: 以降のこうげきとご当地わざのダメージが増える", () => {
+    const used = resolveTurn(
+      createBattle(),
+      { item: "power" },
+      "guard",
+      names,
+      fixed(0),
+    ).state;
+    assert.equal(used.player.attackBonus, BATTLE_ITEMS.power.attack);
+
+    const attack = resolveTurn(used, "attack", "attack", names, fixed(0));
+    assert.equal(
+      attack.hit.enemy,
+      BATTLE_RULES.attack.min + BATTLE_ITEMS.power.attack,
+    );
+
+    const charged = { ...used, player: { ...used.player, energy: 50 } };
+    const special = resolveTurn(charged, "special", "attack", names, fixed(0));
+    assert.equal(
+      special.hit.enemy,
+      BATTLE_RULES.special.min + BATTLE_ITEMS.power.attack,
+    );
+  });
+
+  it("タフネスもち: さいだいHP と HP が増える", () => {
+    const { state } = resolveTurn(
+      battleWith({ hp: 50 }),
+      { item: "tough" },
+      "guard",
+      names,
+      fixed(0),
+    );
+    assert.equal(
+      state.player.maxHp,
+      BATTLE_RULES.maxHp + BATTLE_ITEMS.tough.maxHp,
+    );
+    assert.equal(state.player.hp, 50 + BATTLE_ITEMS.tough.maxHp);
+  });
+
+  it("1 バトルで使える数をこえたら通常こうげきになる", () => {
+    const start = battleWith({ itemsLeft: 0, hp: 40 });
+    assert.equal(canUseItem(start.player), false);
+    const { state } = resolveTurn(
+      start,
+      { item: "potion" },
+      "attack",
+      names,
+      fixed(0),
+    );
+    assert.equal(state.player.itemsLeft, 0);
+    assert.equal(state.enemy.hp, BATTLE_RULES.maxHp - BATTLE_RULES.attack.min);
+    assert.equal(state.player.hp, 40 - BATTLE_RULES.attack.min);
+  });
+
+  it("どうぐを使ったターンに倒されることもある", () => {
+    const { state } = resolveTurn(
+      battleWith({ hp: 1 }, { energy: 100 }),
+      { item: "power" },
+      "special",
+      names,
+      fixed(0),
+    );
+    assert.equal(state.winner, "enemy");
   });
 });
 

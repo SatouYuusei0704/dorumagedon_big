@@ -1,5 +1,5 @@
 // すれちがいNPCバトルのルール（UI から切り離した純粋関数）。
-// 数値を変えるときは BATTLE_RULES だけ触ればよい。
+// 数値を変えるときは BATTLE_RULES / ITEM_TRAITS / BATTLE_ITEMS だけ触ればよい。
 
 import type { ItemCategory } from "@/types/database";
 
@@ -16,7 +16,36 @@ export const BATTLE_RULES = {
   guardedSpecialDamage: 1,
   /** ガード中に通常こうげきを受けたときの倍率 */
   guardedAttackRate: 0.5,
+  /** 1 バトルで使えるどうぐの数 */
+  itemUses: 2,
 } as const;
+
+/** ショップで買えるどうぐ（DB の shop_items.id と同じ） */
+export type BattleItemId = "potion" | "power" | "tough";
+
+/**
+ * どうぐをバトルで使ったときの効果。
+ * 名前・値段は DB の shop_items にもある（値段はサーバー側で決めるため）。
+ */
+export type BattleItem = {
+  name: string;
+  /** かいふくする HP */
+  heal: number;
+  /** このバトルのあいだ、あたえるダメージに足す値 */
+  attack: number;
+  /** このバトルのあいだ、さいだいHPに足す値（同じだけ HP も増える） */
+  maxHp: number;
+};
+
+export const BATTLE_ITEMS: Record<BattleItemId, BattleItem> = {
+  potion: { name: "かいふくドリンク", heal: 30, attack: 0, maxHp: 0 },
+  power: { name: "パワーだんご", heal: 0, attack: 3, maxHp: 0 },
+  tough: { name: "タフネスもち", heal: 0, attack: 0, maxHp: 15 },
+};
+
+export function isBattleItemId(value: unknown): value is BattleItemId {
+  return typeof value === "string" && Object.hasOwn(BATTLE_ITEMS, value);
+}
 
 /** そうびしたアイテムのタイプごとの効果 */
 export type ItemTrait = {
@@ -84,6 +113,9 @@ export function traitOf(category: ItemCategory | null | undefined): ItemTrait {
 
 export type BattleAction = "attack" | "special" | "guard";
 
+/** プレイヤーの行動（コマンド、またはどうぐを使う） */
+export type PlayerAction = BattleAction | { item: BattleItemId };
+
 export type FighterState = {
   hp: number;
   maxHp: number;
@@ -91,6 +123,10 @@ export type FighterState = {
   guardsLeft: number;
   /** ご当地わざのダメージに足す値（そうびの効果） */
   specialBonus: number;
+  /** あたえるダメージに足す値（どうぐの効果） */
+  attackBonus: number;
+  /** このバトルであと何回どうぐを使えるか */
+  itemsLeft: number;
 };
 
 export type BattleSide = "player" | "enemy";
@@ -132,6 +168,8 @@ function newFighter(category?: ItemCategory | null): FighterState {
     energy: trait.startEnergy,
     guardsLeft: BATTLE_RULES.guard.uses + trait.guards,
     specialBonus: trait.specialDamage,
+    attackBonus: 0,
+    itemsLeft: BATTLE_RULES.itemUses,
   };
 }
 
@@ -153,6 +191,11 @@ export function canUse(fighter: FighterState, action: BattleAction) {
   if (action === "special") return fighter.energy >= BATTLE_RULES.special.cost;
   if (action === "guard") return fighter.guardsLeft > 0;
   return true;
+}
+
+/** どうぐを今使えるか（1 バトルの回数制限） */
+export function canUseItem(fighter: FighterState) {
+  return fighter.itemsLeft > 0;
 }
 
 function roll(rng: Rng, min: number, max: number) {
@@ -180,12 +223,13 @@ export function chooseEnemyAction(state: BattleState, rng: Rng): BattleAction {
 
 /**
  * 1 ターン進める。両者の行動は同時に決まり、
- * ガード → プレイヤーの攻撃 → （敵が倒れていなければ）敵の攻撃 の順に解決する。
+ * どうぐ・ガード → プレイヤーの攻撃 → （敵が倒れていなければ）敵の攻撃 の順に解決する。
+ * どうぐを使ったターンは攻撃できない（敵は行動する）。
  * 選べない行動を渡された場合は通常こうげきとして扱う。
  */
 export function resolveTurn(
   state: BattleState,
-  playerAction: BattleAction,
+  playerAction: PlayerAction,
   enemyAction: BattleAction,
   names: BattleNames,
   rng: Rng,
@@ -197,8 +241,38 @@ export function resolveTurn(
   const log: string[] = [];
   const hit = { player: 0, enemy: 0 };
 
-  const pAction = canUse(player, playerAction) ? playerAction : "attack";
+  const usedItem =
+    typeof playerAction === "object" && canUseItem(player)
+      ? playerAction.item
+      : null;
+  // どうぐを使ったターンは攻撃もガードもしない（null）
+  const pAction: BattleAction | null = usedItem
+    ? null
+    : typeof playerAction === "string" && canUse(player, playerAction)
+      ? playerAction
+      : "attack";
   const eAction = canUse(enemy, enemyAction) ? enemyAction : "attack";
+
+  // 0. どうぐ
+  if (usedItem) {
+    const item = BATTLE_ITEMS[usedItem];
+    player.itemsLeft -= 1;
+    log.push(`${names.player} は ${item.name} を つかった！`);
+    if (item.maxHp > 0) {
+      player.maxHp += item.maxHp;
+      player.hp += item.maxHp;
+      log.push(`さいだいHPが ${item.maxHp} あがった！`);
+    }
+    if (item.heal > 0) {
+      const healed = Math.min(item.heal, player.maxHp - player.hp);
+      player.hp += healed;
+      log.push(`HPが ${healed} かいふくした！`);
+    }
+    if (item.attack > 0) {
+      player.attackBonus += item.attack;
+      log.push(`あたえるダメージが ${item.attack} あがった！`);
+    }
+  }
 
   // 1. ガード（このターンだけ有効）
   const playerGuarding = pAction === "guard";
@@ -222,7 +296,7 @@ export function resolveTurn(
 
   // 2. 攻撃の解決
   const strike = (
-    action: BattleAction,
+    action: BattleAction | null,
     attacker: FighterState,
     defender: FighterState,
     attackerName: string,
@@ -230,14 +304,15 @@ export function resolveTurn(
     moveName: string,
     defenderGuarding: boolean,
   ) => {
-    if (action === "guard") return 0;
+    if (action === null || action === "guard") return 0;
     let damage: number;
     if (action === "special") {
       attacker.energy -= BATTLE_RULES.special.cost;
       log.push(`${attackerName} の ご当地わざ【${moveName}】！`);
       damage =
         roll(rng, BATTLE_RULES.special.min, BATTLE_RULES.special.max) +
-        attacker.specialBonus;
+        attacker.specialBonus +
+        attacker.attackBonus;
       if (defenderGuarding) {
         damage = BATTLE_RULES.guardedSpecialDamage;
         log.push(`${defenderName} は ガードで ふせいだ！`);
@@ -248,7 +323,9 @@ export function resolveTurn(
         attacker.energy + BATTLE_RULES.attack.energy,
       );
       log.push(`${attackerName} の こうげき！`);
-      damage = roll(rng, BATTLE_RULES.attack.min, BATTLE_RULES.attack.max);
+      damage =
+        roll(rng, BATTLE_RULES.attack.min, BATTLE_RULES.attack.max) +
+        attacker.attackBonus;
       if (defenderGuarding) {
         damage = Math.ceil(damage * BATTLE_RULES.guardedAttackRate);
         log.push(`${defenderName} は ガードで うけとめた！`);

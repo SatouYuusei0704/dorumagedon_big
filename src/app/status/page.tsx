@@ -43,8 +43,7 @@ function normalizeAvatar(avatar: AvatarData): AvatarData {
     hair: isValidIndex(value.hair, HAIR_STYLES.length) ? value.hair : 0,
     eyes: isValidIndex(value.eyes, FACE_TYPES.length) ? value.eyes : 0,
     color:
-      typeof value.color === "string" &&
-      /^#[0-9a-fA-F]{6}$/.test(value.color)
+      typeof value.color === "string" && /^#[0-9a-fA-F]{6}$/.test(value.color)
         ? value.color
         : BODY_COLORS[0].color,
   };
@@ -80,9 +79,7 @@ export default function StatusPage() {
   const [hairIndex, setHairIndex] = useState(0);
   const [faceIndex, setFaceIndex] = useState(0);
   const [bodyColor, setBodyColor] = useState<string>(BODY_COLORS[0].color);
-  const [activeTab, setActiveTab] = useState<"face" | "hair" | "color">(
-    "face",
-  );
+  const [activeTab, setActiveTab] = useState<"face" | "hair" | "color">("face");
   const [equippedItemId, setEquippedItemId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -214,7 +211,9 @@ export default function StatusPage() {
       setError("");
       setNotice("そうびを変更しました！");
     } catch {
-      setError("そうびを保存できませんでした。ブラウザーの保存設定をご確認ください。");
+      setError(
+        "そうびを保存できませんでした。ブラウザーの保存設定をご確認ください。",
+      );
     }
   };
 
@@ -386,7 +385,7 @@ export default function StatusPage() {
               </div>
 
               <button
-                className="mt-3 w-full border-4 border-[#17283b] bg-[#e95749] py-3 text-sm font-black text-white shadow-[3px_3px_0_#17283b] disabled:opacity-60 active:translate-y-0.5 active:shadow-[1px_1px_0_#17283b]"
+                className="mt-3 w-full border-4 border-[#17283b] bg-[#e95749] py-3 text-sm font-black text-white shadow-[3px_3px_0_#17283b] active:translate-y-0.5 active:shadow-[1px_1px_0_#17283b] disabled:opacity-60"
                 disabled={saving || !profile}
                 onClick={saveAvatar}
                 type="button"
@@ -439,9 +438,7 @@ export default function StatusPage() {
                         <button
                           aria-pressed={isEquipped}
                           className={`shrink-0 border-2 border-[#17283b] px-2 py-1 text-[10px] font-bold ${
-                            isEquipped
-                              ? "bg-[#397b62] text-white"
-                              : "bg-white"
+                            isEquipped ? "bg-[#397b62] text-white" : "bg-white"
                           }`}
                           onClick={() => equipItem(item.id)}
                           type="button"

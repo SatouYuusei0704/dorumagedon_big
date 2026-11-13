@@ -1,7 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-/** リクエストごとに Supabase のセッション（cookie）を更新する */
+/** ログインが必要な画面 */
+const PROTECTED_PATHS = ["/park", "/collection", "/status", "/battle"];
+
+/**
+ * リクエストごとに Supabase のセッション（cookie）を更新し、
+ * ログインが必要な画面に未ログインで来たらログイン画面へ送る。
+ */
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -27,7 +33,17 @@ export async function middleware(request: NextRequest) {
   );
 
   // getUser() を呼ぶことで期限切れトークンが更新される
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { pathname } = request.nextUrl;
+  if (!user && PROTECTED_PATHS.some((path) => pathname.startsWith(path))) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
 
   return response;
 }

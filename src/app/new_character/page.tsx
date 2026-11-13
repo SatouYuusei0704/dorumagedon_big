@@ -15,6 +15,11 @@ const REGIONAL_ITEMS: Record<
   string,
   { name: string; icon: string; desc: string }
 > = {
+  青森県: {
+    name: "りんごのつるぎ",
+    icon: "🍎🗡️",
+    desc: "甘酸っぱい魔力を秘めた真っ赤な剣",
+  },
   滋賀県: {
     name: "琵琶湖の大ナマズ剣",
     icon: "🐟🗡️",
@@ -79,6 +84,7 @@ const DEFAULT_ITEM = {
 };
 
 const PREFECTURES = [
+  "青森県",
   "石川県",
   "滋賀県",
   "群馬県",

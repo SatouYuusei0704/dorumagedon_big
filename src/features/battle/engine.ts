@@ -1,6 +1,8 @@
 // すれちがいNPCバトルのルール（UI から切り離した純粋関数）。
 // 数値を変えるときは BATTLE_RULES だけ触ればよい。
 
+import type { ItemCategory } from "@/types/database";
+
 export const BATTLE_RULES = {
   maxHp: 100,
   maxEnergy: 100,
@@ -16,12 +18,79 @@ export const BATTLE_RULES = {
   guardedAttackRate: 0.5,
 } as const;
 
+/** そうびしたアイテムのタイプごとの効果 */
+export type ItemTrait = {
+  /** タイプの名前 */
+  label: string;
+  /** 効果の説明（画面に出す） */
+  effect: string;
+  /** ご当地わざのダメージに足す値 */
+  specialDamage: number;
+  /** ガード回数に足す値 */
+  guards: number;
+  /** さいだいHPに足す値 */
+  maxHp: number;
+  /** バトル開始時のエネルギー */
+  startEnergy: number;
+};
+
+export const ITEM_TRAITS: Record<ItemCategory, ItemTrait> = {
+  basic: {
+    label: "きほん",
+    effect: "とくべつな こうかは ない",
+    specialDamage: 0,
+    guards: 0,
+    maxHp: 0,
+    startEnergy: 0,
+  },
+  sword: {
+    label: "つるぎ",
+    effect: "ご当地わざの ダメージ +6",
+    specialDamage: 6,
+    guards: 0,
+    maxHp: 0,
+    startEnergy: 0,
+  },
+  shield: {
+    label: "たて",
+    effect: "ガードの かいすう +1",
+    specialDamage: 0,
+    guards: 1,
+    maxHp: 0,
+    startEnergy: 0,
+  },
+  helmet: {
+    label: "かぶと",
+    effect: "さいだいHP +15",
+    specialDamage: 0,
+    guards: 0,
+    maxHp: 15,
+    startEnergy: 0,
+  },
+  charm: {
+    label: "おまもり",
+    effect: "エネルギー 25で スタート",
+    specialDamage: 0,
+    guards: 0,
+    maxHp: 0,
+    startEnergy: 25,
+  },
+};
+
+/** タイプの効果を返す（DB に未知の値が入っていても「きほん」として扱う） */
+export function traitOf(category: ItemCategory | null | undefined): ItemTrait {
+  return (category && ITEM_TRAITS[category]) || ITEM_TRAITS.basic;
+}
+
 export type BattleAction = "attack" | "special" | "guard";
 
 export type FighterState = {
   hp: number;
+  maxHp: number;
   energy: number;
   guardsLeft: number;
+  /** ご当地わざのダメージに足す値（そうびの効果） */
+  specialBonus: number;
 };
 
 export type BattleSide = "player" | "enemy";
@@ -54,16 +123,29 @@ export type TurnResult = {
   hit: { player: number; enemy: number };
 };
 
-function newFighter(): FighterState {
+function newFighter(category?: ItemCategory | null): FighterState {
+  const trait = traitOf(category);
+  const maxHp = BATTLE_RULES.maxHp + trait.maxHp;
   return {
-    hp: BATTLE_RULES.maxHp,
-    energy: 0,
-    guardsLeft: BATTLE_RULES.guard.uses,
+    hp: maxHp,
+    maxHp,
+    energy: trait.startEnergy,
+    guardsLeft: BATTLE_RULES.guard.uses + trait.guards,
+    specialBonus: trait.specialDamage,
   };
 }
 
-export function createBattle(): BattleState {
-  return { player: newFighter(), enemy: newFighter(), turn: 1, winner: null };
+/** バトルを始める。引数は両者がそうびしているアイテムのタイプ */
+export function createBattle(
+  playerCategory?: ItemCategory | null,
+  enemyCategory?: ItemCategory | null,
+): BattleState {
+  return {
+    player: newFighter(playerCategory),
+    enemy: newFighter(enemyCategory),
+    turn: 1,
+    winner: null,
+  };
 }
 
 /** その行動を今選べるか */
@@ -153,7 +235,9 @@ export function resolveTurn(
     if (action === "special") {
       attacker.energy -= BATTLE_RULES.special.cost;
       log.push(`${attackerName} の ご当地わざ【${moveName}】！`);
-      damage = roll(rng, BATTLE_RULES.special.min, BATTLE_RULES.special.max);
+      damage =
+        roll(rng, BATTLE_RULES.special.min, BATTLE_RULES.special.max) +
+        attacker.specialBonus;
       if (defenderGuarding) {
         damage = BATTLE_RULES.guardedSpecialDamage;
         log.push(`${defenderName} は ガードで ふせいだ！`);

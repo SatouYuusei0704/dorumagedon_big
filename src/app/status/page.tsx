@@ -12,6 +12,7 @@ import {
   HAIR_STYLES,
   normalizeAvatar,
 } from "@/features/avatar";
+import { traitOf } from "@/features/battle";
 import type {
   AvatarData,
   BattleStats,
@@ -360,6 +361,10 @@ export default function StatusPage() {
                             <p className="mt-1 text-[10px] text-[#715831]">
                               {item.prefecture ?? "ぜんこく"} ・ {item.quantity}
                               こ
+                            </p>
+                            <p className="mt-0.5 text-[10px] font-bold text-[#27775a]">
+                              {traitOf(item.category).label}:{" "}
+                              {traitOf(item.category).effect}
                             </p>
                           </div>
                           <button

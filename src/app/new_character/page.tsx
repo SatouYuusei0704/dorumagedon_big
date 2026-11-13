@@ -9,6 +9,7 @@ import {
   FACE_TYPES,
   HAIR_STYLES,
 } from "@/features/avatar";
+import type { Item, StarterItemResponse } from "@/types/database";
 
 // 都道府県ごとのご当地アイテムデータ
 const REGIONAL_ITEMS: Record<
@@ -131,6 +132,9 @@ function NewCharacterContent() {
   const [showItemModal, setShowItemModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  // 実際にもらったアイテム（DB の内容）。もう受け取っていた場合は alreadyClaimed
+  const [starterItem, setStarterItem] = useState<Item | null>(null);
+  const [alreadyClaimed, setAlreadyClaimed] = useState(false);
 
   // DB に保存するアバター（広場などで他の人に表示される）
   const avatar = {
@@ -151,6 +155,12 @@ function NewCharacterContent() {
         body: JSON.stringify({ avatar, homeArea: selectedLocation }),
       });
       if (!res.ok) throw new Error();
+      // 出身地のご当地アイテムを実際に受け取る（1 人 1 回。2 回目以降は null）
+      const starterRes = await fetch("/api/items/starter", { method: "POST" });
+      if (!starterRes.ok) throw new Error();
+      const { item } = (await starterRes.json()) as StarterItemResponse;
+      setStarterItem(item);
+      setAlreadyClaimed(item === null);
       setShowItemModal(true);
     } catch {
       setSaveError("ほぞんに しっぱいしました。もういちど おしてください");
@@ -177,7 +187,15 @@ function NewCharacterContent() {
       setBodyColorIndex((prev) => (prev + 1) % MAX_PATTERNS);
   };
 
-  const obtainedItem = REGIONAL_ITEMS[selectedLocation] || DEFAULT_ITEM;
+  // 決定前のプレビューは画面内の一覧、決定後は実際にもらったアイテムを表示する
+  const previewItem = REGIONAL_ITEMS[selectedLocation] || DEFAULT_ITEM;
+  const obtainedItem = starterItem
+    ? {
+        name: starterItem.name,
+        icon: starterItem.icon,
+        desc: starterItem.description,
+      }
+    : previewItem;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#1e293b] p-2 font-mono selection:bg-[#e11d48] selection:text-white">
@@ -315,7 +333,7 @@ function NewCharacterContent() {
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
             <div className="w-full rounded-2xl border-4 border-[#0f172a] bg-[#fef08a] p-4 text-center shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
               <div className="mb-2 inline-block rounded-full bg-[#0f172a] px-3 py-1 text-xs font-bold text-[#facc15]">
-                ITEM GET!
+                {alreadyClaimed ? "SAVED!" : "ITEM GET!"}
               </div>
 
               <h2 className="mb-3 text-sm font-bold text-[#0f172a]">
@@ -335,7 +353,9 @@ function NewCharacterContent() {
               </div>
 
               <p className="mb-4 text-[11px] font-bold text-[#0f172a]">
-                ご当地そうび を てにいれた！
+                {alreadyClaimed
+                  ? "すがたを ほぞんしました（ご当地そうびは うけとりずみ）"
+                  : "ご当地そうび を てにいれて そうびした！"}
               </p>
 
               <Link

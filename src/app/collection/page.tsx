@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { AppFooter } from "@/components/ui/AppFooter";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { useAuth } from "@/features/auth";
+import { traitOf } from "@/features/battle";
+import { useEncounterEvents } from "@/features/notification";
 import type { CollectionEntry } from "@/types/database";
 
 /** アイテムがもらえる出身地の表示名 */
@@ -25,6 +27,8 @@ export default function CollectionPage() {
   const [collection, setCollection] = useState<CollectionEntry[] | null>(null);
   const [error, setError] = useState(false);
   const [selected, setSelected] = useState<CollectionEntry | null>(null);
+  // すれ違いが成立するたびに増える（図鑑を読み込み直す）
+  const { encounterVersion } = useEncounterEvents();
 
   // 未ログインならログイン画面へ
   useEffect(() => {
@@ -40,7 +44,7 @@ export default function CollectionPage() {
       })
       .then(setCollection)
       .catch(() => setError(true));
-  }, [loading, user, router]);
+  }, [loading, user, router, encounterVersion]);
 
   const obtainedCount = collection?.filter((i) => i.quantity > 0).length ?? 0;
   const totalCount = collection?.length ?? 0;
@@ -156,6 +160,12 @@ export default function CollectionPage() {
                 <div className="text-[11px] font-bold text-slate-600">
                   {selected.quantity > 0 ? selected.description : "？？？"}
                 </div>
+                {selected.quantity > 0 && (
+                  <div className="mt-2 border-t-2 border-dashed border-slate-300 pt-2 text-[11px] font-bold text-[#27775a]">
+                    そうびこうか（{traitOf(selected.category).label}）:{" "}
+                    {traitOf(selected.category).effect}
+                  </div>
+                )}
               </div>
 
               <p className="mb-4 text-[11px] font-bold text-[#0f172a]">

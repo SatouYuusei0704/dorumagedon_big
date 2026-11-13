@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DotGothic16 } from "next/font/google";
+import { EncounterProvider } from "@/features/notification";
 import "./globals.css";
 
 const pixelFont = DotGothic16({
@@ -20,7 +21,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
-      <body className={`${pixelFont.variable} antialiased`}>{children}</body>
+      <body className={`${pixelFont.variable} antialiased`}>
+        <EncounterProvider>{children}</EncounterProvider>
+      </body>
     </html>
   );
 }

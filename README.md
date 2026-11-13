@@ -25,7 +25,8 @@ http://localhost:3000 を開いて表示されれば OK。
 
 ### DB の初期化（管理者のみ・初回）
 
-Supabase の SQL Editor で [supabase/migrations/0001_init.sql](supabase/migrations/0001_init.sql) を実行します。
+Supabase の SQL Editor で [supabase/migrations/](supabase/migrations/) の SQL を **番号順に** すべて実行します（0001 → 0007）。
+新しい番号のファイルが追加されたら、そのファイルだけを追加で実行してください。
 
 ## コマンド
 

@@ -42,7 +42,10 @@ export async function GET() {
   return NextResponse.json(data);
 }
 
-/** ニックネーム・出身地・アバターを更新する: PATCH /api/profile */
+/**
+ * ニックネーム・出身地・アバター・そうびを更新する: PATCH /api/profile
+ * body: { nickname?, homeArea?, avatar?, equippedItemId?: number | null }
+ */
 export async function PATCH(request: Request) {
   const supabase = await createClient();
   const {
@@ -56,7 +59,20 @@ export async function PATCH(request: Request) {
   if (typeof body !== "object" || body === null) {
     return NextResponse.json({ error: "invalid body" }, { status: 400 });
   }
-  const { nickname, homeArea, avatar } = body as Record<string, unknown>;
+  const { nickname, homeArea, avatar, equippedItemId } = body as Record<
+    string,
+    unknown
+  >;
+  if (
+    equippedItemId !== undefined &&
+    equippedItemId !== null &&
+    !(Number.isInteger(equippedItemId) && (equippedItemId as number) > 0)
+  ) {
+    return NextResponse.json(
+      { error: "invalid equippedItemId" },
+      { status: 400 },
+    );
+  }
 
   const updates: Partial<Pick<Profile, "nickname" | "home_area" | "avatar">> =
     {};
@@ -87,15 +103,35 @@ export async function PATCH(request: Request) {
       color: avatar.color,
     };
   }
-  if (Object.keys(updates).length === 0) {
+  if (Object.keys(updates).length === 0 && equippedItemId === undefined) {
     return NextResponse.json({ error: "nothing to update" }, { status: 400 });
+  }
+
+  if (Object.keys(updates).length > 0) {
+    const { error } = await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", user.id);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+  }
+
+  // そうびは「持っているアイテムか」をDB側で確かめる equip_item() で変更する
+  if (equippedItemId !== undefined) {
+    const { error } = await supabase.rpc("equip_item", {
+      p_item: equippedItemId,
+    });
+    if (error) {
+      const status = error.code === "42501" ? 403 : 500;
+      return NextResponse.json({ error: error.message }, { status });
+    }
   }
 
   const { data, error } = await supabase
     .from("profiles")
-    .update(updates)
+    .select("*")
     .eq("id", user.id)
-    .select()
     .maybeSingle<Profile>();
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

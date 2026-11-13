@@ -19,13 +19,11 @@ const ICONS = {
       <span className="block h-[2px] bg-[#e9b949]" />
     </span>
   ),
-  /** 四角の中に四角 */
-  debug: (
-    <span
-      className="flex h-4 w-4 items-center justify-center border-2 border-[#e9b949]"
-      aria-hidden
-    >
+  /** 人型（頭 + 体） */
+  status: (
+    <span className="flex flex-col items-center gap-[2px]" aria-hidden>
       <span className="block h-1.5 w-1.5 bg-[#e9b949]" />
+      <span className="block h-2 w-3.5 bg-[#e9b949]" />
     </span>
   ),
 } as const;
@@ -34,8 +32,7 @@ const ICONS = {
 const NAV_ITEMS = [
   { href: "/park", label: "ひろば", icon: ICONS.plaza },
   { href: "/collection", label: "コレクション", icon: ICONS.collection },
-  // すれ違いテスト（仮）。本番画面ができたら削除する
-  { href: "/debug", label: "テスト", icon: ICONS.debug },
+  { href: "/status", label: "キャラクター", icon: ICONS.status },
 ];
 
 type Props = {

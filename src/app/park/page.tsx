@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { AppFooter } from "@/components/ui/AppFooter";
 import { useAuth } from "@/features/auth";
 import { AvatarSprite } from "@/features/avatar";
+import type { GeoStatus } from "@/features/encounter";
+import { useEncounterEvents } from "@/features/notification";
 import type { EncounterHistoryEntry, PublicProfile } from "@/types/database";
 
 /** 広場に表示する最大人数（立ち位置の数） */
@@ -22,13 +24,24 @@ const VISITOR_SPOTS = [
   { top: 74, left: 50 },
 ];
 
+/** ヘッダーに出す「すれちがい通信」の状態 */
+const GEO_LABELS: Record<GeoStatus, string> = {
+  waiting: "通信じゅんびちゅう…",
+  active: "📡 すれちがい通信ちゅう",
+  unsupported: "この端末は位置情報NG",
+  denied: "位置情報をオンにしてね",
+  error: "通信エラー（再接続ちゅう）",
+};
+
 export default function ParkPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const [history, setHistory] = useState<EncounterHistoryEntry[] | null>(null);
   const [selected, setSelected] = useState<PublicProfile | null>(null);
+  const { geoStatus, encounterVersion } = useEncounterEvents();
 
   // 未ログインならログイン画面へ。ログイン済みならすれ違い履歴を読み込む
+  // （すれ違いが成立したら encounterVersion が増えるので読み込み直す）
   useEffect(() => {
     if (loading) return;
     if (!user) {
@@ -39,7 +52,7 @@ export default function ParkPage() {
       .then((res) => (res.ok ? res.json() : []))
       .then(setHistory)
       .catch(() => setHistory([]));
-  }, [loading, user, router]);
+  }, [loading, user, router, encounterVersion]);
 
   // すれ違った人（重複なし・新しい順）。退会したユーザーは除く
   const partners = useMemo(() => {
@@ -67,7 +80,9 @@ export default function ParkPage() {
           </div>
           <div className="header-player">
             <p>ご当地ハンター</p>
-            <span>RANK 12</span>
+            <span className={geoStatus === "active" ? "" : "geo-warn"}>
+              {GEO_LABELS[geoStatus]}
+            </span>
           </div>
         </header>
 
@@ -263,6 +278,11 @@ export default function ParkPage() {
           background: #e7b749;
           color: #342d23;
           font-size: 8px;
+        }
+
+        .header-player .geo-warn {
+          background: #e85a49;
+          color: #fff5cd;
         }
 
         .plaza-title {

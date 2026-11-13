@@ -6,6 +6,8 @@ export type Profile = {
   nickname: string;
   home_area: string | null;
   avatar: AvatarData;
+  /** そうび中のアイテム（バトルのご当地わざになる） */
+  equipped_item_id: number | null;
   created_at: string;
 };
 
@@ -37,6 +39,16 @@ export type Item = {
   /** 表示用の絵文字（ドット絵ができたら差し替える） */
   icon: string;
   description: string;
+};
+
+export type Battle = {
+  id: number;
+  user_id: string;
+  opponent_id: string;
+  won: boolean;
+  /** 勝利でもらったアイテム（負け・報酬上限のときは null） */
+  reward_item_id: number | null;
+  fought_at: string;
 };
 
 export type UserItem = {
@@ -75,3 +87,29 @@ export type EncounterHistoryEntry = {
 
 /** GET /api/items のレスポンス要素（図鑑） */
 export type CollectionEntry = Item & { quantity: number };
+
+/** バトルに出るキャラクター */
+export type BattleFighter = {
+  profile: PublicProfile;
+  /** ご当地わざ（そうび中のアイテム、なければ出身地のアイテム） */
+  move: Item;
+};
+
+/** GET /api/battles/setup?opponent=<id> のレスポンス */
+export type BattleSetupResponse = {
+  player: BattleFighter;
+  enemy: BattleFighter;
+};
+
+/** POST /api/battles のレスポンス */
+export type BattleResultResponse = {
+  won: boolean;
+  /** もらったアイテム（負け・同じ相手から今日すでにもらっている場合は null） */
+  reward: Item | null;
+};
+
+/** GET /api/battles のレスポンス（戦績） */
+export type BattleStats = {
+  wins: number;
+  losses: number;
+};

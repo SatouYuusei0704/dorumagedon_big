@@ -10,6 +10,8 @@ export type Profile = {
   equipped_item_id: number | null;
   /** はじめのご当地アイテムを受け取ったか */
   starter_claimed: boolean;
+  /** 所持コイン（バトルでもらい、ショップで使う） */
+  coins: number;
   created_at: string;
 };
 
@@ -113,9 +115,45 @@ export type BattleSetupResponse = {
   enemy: BattleFighter;
 };
 
+/** ショップの商品（バトル中に使う「どうぐ」） */
+export type ShopItem = {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  price: number;
+  sort_order: number;
+};
+
+/** 商品 + 自分の所持数 */
+export type ShopEntry = ShopItem & { quantity: number };
+
+/** GET /api/shop のレスポンス */
+export type ShopResponse = {
+  coins: number;
+  items: ShopEntry[];
+};
+
+/** POST /api/shop（買う）のレスポンス */
+export type ShopBuyResponse = {
+  coins: number;
+  /** 買ったどうぐの所持数 */
+  quantity: number;
+};
+
+/** POST /api/shop/use（使う）のレスポンス */
+export type ShopUseResponse = {
+  /** 使ったあとの所持数 */
+  quantity: number;
+};
+
 /** POST /api/battles のレスポンス */
 export type BattleResultResponse = {
   won: boolean;
+  /** 今回もらったコイン（1 日の上限に達していたら 0） */
+  coins: number;
+  /** もらったあとの所持コイン */
+  coinsTotal: number;
   /** もらったアイテム（負け・同じ相手から今日すでにもらっている場合は null） */
   reward: Item | null;
 };

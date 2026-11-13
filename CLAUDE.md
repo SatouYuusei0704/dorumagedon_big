@@ -41,8 +41,23 @@
   - ご当地わざ: エネルギー 50 を使う大ダメージ
   - ガード: 1 バトル 2 回まで。相手のご当地わざを 1 ダメージに抑え、通常こうげきは半減
 - 勝つと相手の出身地のアイテムを 1 つもらえる（同じ相手からは 1 日 1 回まで）。戦績は `battles` に記録
-- ルールと数値は `src/features/battle/engine.ts`（`BATTLE_RULES` / `ITEM_TRAITS`）にまとめてある。
+- 勝っても負けてもコインをもらえる（勝ち 30 / 負け 10。もらえるのは 1 日 10 回まで）
+- ルールと数値は `src/features/battle/engine.ts`（`BATTLE_RULES` / `ITEM_TRAITS` / `BATTLE_ITEMS`）にまとめてある。
   変更したら `src/features/battle/engine.test.ts` も合わせて直し、`npm test` を通すこと
+
+### コインとショップ
+
+- バトルでもらったコインを使い、ショップ（`/shop`）で「どうぐ」を買う
+- どうぐはバトル画面の「アイテム」ボタンから使う（1 バトル 2 個まで。使ったターンは攻撃できない）
+- 商品と値段は DB の `shop_items`、バトル中の効果は `engine.ts` の `BATTLE_ITEMS`（id をそろえること）
+
+| どうぐ           | 値段 | 効果                              |
+| ---------------- | ---- | --------------------------------- |
+| かいふくドリンク | 30   | HP を 30 回復                     |
+| パワーだんご     | 40   | そのバトル中、あたえるダメージ +3 |
+| タフネスもち     | 40   | そのバトル中、さいだいHP +15      |
+
+- コインと持ち物の増減は DB の関数（`record_battle` / `buy_shop_item` / `use_shop_item`）だけが行う
 
 ## 3. 画面と API
 
@@ -54,9 +69,10 @@
 | `/park`          | すれちがい広場（すれ違った人をタップしてバトル）     |
 | `/battle`        | すれちがいNPCバトル                                  |
 | `/collection`    | ご当地アイテムの図鑑                                 |
+| `/shop`          | コインでどうぐを買うショップ                         |
 | `/status`        | キャラクターの見た目・そうび・戦績・ログアウト       |
 
-`/park` `/battle` `/collection` `/status` はログインが必要（`src/middleware.ts` で未ログインなら `/login` へ）。
+`/park` `/battle` `/collection` `/shop` `/status` はログインが必要（`src/middleware.ts` で未ログインなら `/login` へ）。
 
 | API                       | 内容                                       |
 | ------------------------- | ------------------------------------------ |
@@ -67,6 +83,8 @@
 | `POST /api/items/starter` | はじめのご当地アイテムを受け取る           |
 | `GET /api/battles/setup`  | バトルの準備（自分と敵のデータ）           |
 | `GET/POST /api/battles`   | 戦績の取得・勝敗の記録                     |
+| `GET/POST /api/shop`      | ショップの商品とコインの取得・どうぐを買う |
+| `POST /api/shop/use`      | バトル中にどうぐを 1 つ使う                |
 
 ## 4. 技術スタック
 

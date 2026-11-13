@@ -21,7 +21,7 @@ import { EncounterToast } from "./EncounterToast";
 import { useEncounterRealtime } from "./useEncounterRealtime";
 
 /** すれちがい通信を動かす画面（ログイン後のゲーム画面） */
-const GAME_PATHS = ["/park", "/collection", "/status", "/battle"];
+const GAME_PATHS = ["/park", "/collection", "/status", "/battle", "/shop"];
 
 type EncounterContextValue = {
   /** 位置情報の送信状態 */

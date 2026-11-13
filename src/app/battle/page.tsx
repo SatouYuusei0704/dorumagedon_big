@@ -7,19 +7,24 @@ import { AvatarSprite } from "@/features/avatar";
 import {
   BATTLE_RULES,
   canUse,
+  canUseItem,
   chooseEnemyAction,
   createBattle,
+  isBattleItemId,
   resolveTurn,
   traitOf,
-  type BattleAction,
   type BattleNames,
   type BattleState,
   type FighterState,
+  type PlayerAction,
 } from "@/features/battle";
 import type {
   BattleFighter,
   BattleResultResponse,
   BattleSetupResponse,
+  ShopEntry,
+  ShopResponse,
+  ShopUseResponse,
 } from "@/types/database";
 
 /** ログを 1 行ずつ出す間隔 */
@@ -59,6 +64,21 @@ function BattleContent() {
   const [hits, setHits] = useState({ player: 0, enemy: 0 });
   const [save, setSave] = useState<SaveState>({ status: "idle" });
   const timers = useRef<number[]>([]);
+  /** ショップで買ったどうぐ（バトルで使えるものだけ） */
+  const [items, setItems] = useState<ShopEntry[]>([]);
+  const [showItems, setShowItems] = useState(false);
+  const [itemError, setItemError] = useState("");
+  const usingItem = useRef(false);
+
+  // 持っているどうぐを読み込む（失敗してもバトルはできる）
+  useEffect(() => {
+    fetch("/api/shop")
+      .then((res) => (res.ok ? (res.json() as Promise<ShopResponse>) : null))
+      .then((shop) => {
+        if (shop) setItems(shop.items.filter((i) => isBattleItemId(i.id)));
+      })
+      .catch(() => {});
+  }, []);
 
   // 自分と敵（すれ違った相手）のデータを読み込む
   useEffect(() => {
@@ -124,7 +144,7 @@ function BattleContent() {
   }, [battle.winner, setup, save.status]);
 
   const act = useCallback(
-    (action: BattleAction) => {
+    (action: PlayerAction) => {
       if (!setup || busy || battle.winner) return;
       const names: BattleNames = {
         player: setup.player.profile.nickname,
@@ -162,12 +182,38 @@ function BattleContent() {
     [setup, busy, battle],
   );
 
+  // どうぐを使う: 先にサーバーで所持数を減らしてから、ターンを進める
+  const consumeItem = async (item: ShopEntry) => {
+    if (!isBattleItemId(item.id) || busy || usingItem.current) return;
+    usingItem.current = true;
+    setItemError("");
+    try {
+      const res = await fetch("/api/shop/use", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: item.id }),
+      });
+      if (!res.ok) throw new Error();
+      const { quantity } = (await res.json()) as ShopUseResponse;
+      setItems((prev) =>
+        prev.map((i) => (i.id === item.id ? { ...i, quantity } : i)),
+      );
+      setShowItems(false);
+      act({ item: item.id });
+    } catch {
+      setItemError("どうぐを つかえませんでした");
+    } finally {
+      usingItem.current = false;
+    }
+  };
+
   const restart = () => {
     if (!setup) return;
     setBattle(
       createBattle(setup.player.move.category, setup.enemy.move.category),
     );
     setSave({ status: "idle" });
+    setShowItems(false);
     setLogs([`${setup.enemy.profile.nickname} が また あらわれた！`]);
   };
 
@@ -245,8 +291,63 @@ function BattleContent() {
           save={save}
           onRestart={restart}
         />
+      ) : showItems ? (
+        <div className="rounded-xl border-4 border-[#0f172a] bg-white p-2">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-black text-[#0f172a]">
+              🎒 どうぐ（このバトルで あと {player.itemsLeft}こ）
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowItems(false)}
+              className="rounded border-2 border-[#0f172a] bg-slate-200 px-2 py-0.5 text-[11px] font-bold"
+            >
+              もどる
+            </button>
+          </div>
+          {items.every((i) => i.quantity === 0) ? (
+            <p className="px-1 py-3 text-center text-[11px] font-bold text-slate-600">
+              どうぐを もっていません。
+              <br />
+              ショップで コインを つかって かえます。
+            </p>
+          ) : (
+            <ul className="grid gap-1.5">
+              {items
+                .filter((i) => i.quantity > 0)
+                .map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => consumeItem(item)}
+                      disabled={busy}
+                      className="flex w-full items-center gap-2 rounded-lg border-2 border-[#0f172a] bg-[#fef9c3] px-2 py-1.5 text-left active:translate-y-0.5 disabled:opacity-60"
+                    >
+                      <span className="text-xl">{item.icon}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-xs font-black">
+                          {item.name}
+                        </span>
+                        <span className="block truncate text-[10px] font-bold text-slate-600">
+                          {item.description}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-xs font-black">
+                        ×{item.quantity}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          )}
+          {itemError && (
+            <p className="mt-1 text-center text-[11px] font-bold text-red-700">
+              {itemError}
+            </p>
+          )}
+        </div>
       ) : (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <CommandButton
             color="bg-[#ef4444] hover:bg-[#dc2626]"
             disabled={busy}
@@ -271,6 +372,13 @@ function BattleContent() {
             onClick={() => act("guard")}
             title="🛡️ ガード"
             sub={`のこり ${player.guardsLeft}かい`}
+          />
+          <CommandButton
+            color="bg-[#16a34a] hover:bg-[#15803d]"
+            disabled={busy || !canUseItem(player)}
+            onClick={() => setShowItems(true)}
+            title="🎒 アイテム"
+            sub={`のこり ${player.itemsLeft}かい`}
           />
         </div>
       )}
@@ -367,6 +475,7 @@ function StatusPanel({
         <span>
           {"🛡️".repeat(state.guardsLeft)}
           {state.guardsLeft === 0 && "ガードなし"}
+          {state.attackBonus > 0 && ` 💪+${state.attackBonus}`}
         </span>
         {specialReady && (
           <span className="font-bold text-orange-300">わざOK!</span>
@@ -516,6 +625,13 @@ function ResultPanel({
                 : "つぎは まけないぞ！"}
             </p>
           ))}
+        {save.status === "saved" && (
+          <p className="mt-1 text-xs font-bold">
+            {save.result.coins > 0
+              ? `🪙 ${save.result.coins}コイン もらった！（ぜんぶで ${save.result.coinsTotal}）`
+              : "きょうの コインは もう もらいきりました"}
+          </p>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-2">
         <button

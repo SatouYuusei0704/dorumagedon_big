@@ -5,7 +5,12 @@ import type { BattleResultResponse, BattleStats, Item } from "@/types/database";
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type RecordBattleRow = { new_battle_id: number; reward_id: number | null };
+type RecordBattleRow = {
+  new_battle_id: number;
+  reward_id: number | null;
+  coins_earned: number | null;
+  coins_total: number | null;
+};
 
 /** 自分の戦績を返す: GET /api/battles */
 export async function GET() {
@@ -42,6 +47,7 @@ export async function GET() {
  * バトルの結果を記録する: POST /api/battles
  * body: { opponentId: string, won: boolean }
  * 勝ったら相手の出身地のアイテムをもらう（同じ相手から 1 日 1 回まで）。
+ * 勝っても負けてもコインをもらう（勝ち 30 / 負け 10。1 日 10 回まで）。
  */
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -86,5 +92,10 @@ export async function POST(request: Request) {
     reward = item ?? null;
   }
 
-  return NextResponse.json<BattleResultResponse>({ won, reward });
+  return NextResponse.json<BattleResultResponse>({
+    won,
+    reward,
+    coins: row?.coins_earned ?? 0,
+    coinsTotal: row?.coins_total ?? 0,
+  });
 }

@@ -26,12 +26,22 @@ const ICONS = {
       <span className="block h-2 w-3.5 bg-[#e9b949]" />
     </span>
   ),
+  /** コイン（丸の中に点） */
+  shop: (
+    <span
+      className="flex h-4 w-4 items-center justify-center rounded-full border-2 border-[#e9b949]"
+      aria-hidden
+    >
+      <span className="block h-1.5 w-1.5 rounded-full bg-[#e9b949]" />
+    </span>
+  ),
 } as const;
 
 /** フッターから移動できる画面 */
 const NAV_ITEMS = [
   { href: "/park", label: "ひろば", icon: ICONS.plaza },
   { href: "/collection", label: "コレクション", icon: ICONS.collection },
+  { href: "/shop", label: "ショップ", icon: ICONS.shop },
   { href: "/status", label: "キャラクター", icon: ICONS.status },
 ];
 

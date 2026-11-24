@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { AvatarSprite } from "@/features/avatar";
+import { playJingle } from "@/features/sound";
 import type { NewEncounter } from "@/types/database";
 
 /** 自動で閉じるまでの時間 */
@@ -14,6 +15,10 @@ type Props = {
 
 /** 「すれちがい成功！」の演出（タップか時間経過で閉じる） */
 export function EncounterToast({ encounter, onClose }: Props) {
+  useEffect(() => {
+    playJingle("encounter");
+  }, []);
+
   useEffect(() => {
     const id = window.setTimeout(onClose, AUTO_CLOSE_MS);
     return () => window.clearTimeout(id);

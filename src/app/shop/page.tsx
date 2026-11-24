@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AppFooter } from "@/components/ui/AppFooter";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { BATTLE_RULES } from "@/features/battle";
+import { playSe } from "@/features/sound";
 import type {
   ShopBuyResponse,
   ShopEntry,
@@ -38,6 +39,7 @@ export default function ShopPage() {
         body: JSON.stringify({ itemId: item.id }),
       });
       if (res.status === 409) {
+        playSe("error");
         setMessage({ text: "コインが たりません", error: true });
         return;
       }
@@ -49,8 +51,10 @@ export default function ShopPage() {
           i.id === item.id ? { ...i, quantity: result.quantity } : i,
         ),
       });
+      playSe("coin");
       setMessage({ text: `${item.name} を かった！`, error: false });
     } catch {
+      playSe("error");
       setMessage({
         text: "かえませんでした。もういちど ためしてください",
         error: true,

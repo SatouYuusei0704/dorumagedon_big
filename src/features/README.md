@@ -9,6 +9,7 @@
 | `items/`        | ご当地アイテムの交換・図鑑                | C    |
 | `battle/`       | すれちがいNPCバトルのルール（engine.ts）  | C    |
 | `notification/` | Supabase Realtime による通知・演出        | D    |
+| `sound/`        | BGM・効果音（Web Audio API で合成）       | -    |
 
 - 各機能のコンポーネント・hooks・ロジックはそのフォルダ内に置く
 - 複数機能で使う UI は `src/components/ui/`、共通処理は `src/lib/` へ

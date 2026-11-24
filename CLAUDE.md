@@ -59,6 +59,14 @@
 
 - コインと持ち物の増減は DB の関数（`record_battle` / `buy_shop_item` / `use_shop_item`）だけが行う
 
+### サウンド
+
+- 音声ファイルは使わず、Web Audio API でファミコン風の音をその場で合成する（`src/features/sound`）
+- 譜面（BGM・ジングル）と、画面ごとの BGM・バトルのログに合わせる効果音は `music.ts`、音を鳴らす処理は `synth.ts`
+- `SoundController`（layout に 1 つ）が画面に合わせて BGM を切り替え、ボタン・リンクを押すと効果音を鳴らす。
+  要素に `data-sound="confirm"` などを付けると音を変えられる（`"none"` で鳴らさない）
+- ブラウザの制限で、最初に画面をタップするまで音は鳴らない。右上の「♪ ON/OFF」でミュートできる（localStorage に保存）
+
 ## 3. 画面と API
 
 | 画面             | 内容                                                 |
@@ -100,7 +108,7 @@
 ```
 src/app/            画面と API
 src/components/ui/  複数の機能で使う UI
-src/features/       機能ごとのコード（avatar / auth / encounter / notification / battle / items）
+src/features/       機能ごとのコード（avatar / auth / encounter / notification / battle / items / sound）
 src/lib/            共通処理（Supabase クライアントなど）
 src/types/          DB と API の型
 supabase/migrations/ DB の変更（連番の SQL）

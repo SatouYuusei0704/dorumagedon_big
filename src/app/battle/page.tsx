@@ -18,6 +18,7 @@ import {
   type FighterState,
   type PlayerAction,
 } from "@/features/battle";
+import { playBgm, playJingle, playSe, seForBattleLog } from "@/features/sound";
 import type {
   BattleFighter,
   BattleResultResponse,
@@ -123,6 +124,13 @@ function BattleContent() {
     return () => pending.forEach((id) => window.clearTimeout(id));
   }, []);
 
+  // 決着したら BGM を止めて、勝ち負けのジングルを鳴らす
+  useEffect(() => {
+    if (!battle.winner) return;
+    playBgm(null);
+    playJingle(battle.winner === "player" ? "win" : "lose");
+  }, [battle.winner]);
+
   // 決着したら結果をサーバーに記録する（1 バトル 1 回）
   useEffect(() => {
     if (!battle.winner || !setup || save.status !== "idle") return;
@@ -159,10 +167,11 @@ function BattleContent() {
       setBusy(true);
       turn.log.forEach((line, i) => {
         timers.current.push(
-          window.setTimeout(
-            () => setLogs((prev) => [...prev, line].slice(-LOG_LINES)),
-            i * LOG_STEP_MS,
-          ),
+          window.setTimeout(() => {
+            setLogs((prev) => [...prev, line].slice(-LOG_LINES));
+            const se = seForBattleLog(line);
+            if (se) playSe(se);
+          }, i * LOG_STEP_MS),
         );
       });
       timers.current.push(
@@ -214,6 +223,7 @@ function BattleContent() {
     );
     setSave({ status: "idle" });
     setShowItems(false);
+    playBgm("battle");
     setLogs([`${setup.enemy.profile.nickname} が また あらわれた！`]);
   };
 
@@ -299,6 +309,7 @@ function BattleContent() {
             </p>
             <button
               type="button"
+              data-sound="cancel"
               onClick={() => setShowItems(false)}
               className="rounded border-2 border-[#0f172a] bg-slate-200 px-2 py-0.5 text-[11px] font-bold"
             >
@@ -394,6 +405,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         <div className="mb-3 flex items-center justify-between rounded-lg border-2 border-black bg-[#0f172a] p-2 text-white">
           <Link
             href="/park"
+            data-sound="cancel"
             className="rounded border border-white/40 bg-[#334155] px-2 py-1 text-xs hover:bg-[#475569]"
           >
             ◀ にげる

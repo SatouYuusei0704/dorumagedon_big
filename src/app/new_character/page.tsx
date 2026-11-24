@@ -9,6 +9,7 @@ import {
   FACE_TYPES,
   HAIR_STYLES,
 } from "@/features/avatar";
+import { playJingle, playSe } from "@/features/sound";
 import type { Item, StarterItemResponse } from "@/types/database";
 
 // 都道府県ごとのご当地アイテムデータ
@@ -162,7 +163,10 @@ function NewCharacterContent() {
       setStarterItem(item);
       setAlreadyClaimed(item === null);
       setShowItemModal(true);
+      if (item) playJingle("itemGet");
+      else playSe("confirm");
     } catch {
+      playSe("error");
       setSaveError("ほぞんに しっぱいしました。もういちど おしてください");
     } finally {
       setSaving(false);
